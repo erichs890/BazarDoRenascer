@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Bazar do Renascer",
+    "slug": "bazar-do-renascer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-font"
+    ]
+  }
+}
