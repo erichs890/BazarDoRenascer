@@ -1,161 +1,178 @@
-# Tutorial — do zero ao banco do Bazar do Renascer no Supabase
+# Ligando o app ao Supabase — passo a passo
 
-Tempo estimado: 20 minutos. Não precisa instalar nada além do navegador.
+Do projeto vazio ao app funcionando. ~15 minutos.
 
 ---
 
-## 1. Criar a conta no Supabase
+## 1. Pegar as chaves
 
-1. Acesse **https://supabase.com** e clique em **Start your project**.
-2. Entre com GitHub (recomendado) ou e-mail e senha.
-3. Na primeira vez, o Supabase cria uma **Organization** para você. Aceite o nome sugerido ou coloque `Bazar do Renascer`. Plano **Free** é suficiente.
+No painel do Supabase, com o projeto aberto:
 
-## 2. Criar o projeto (o banco de dados)
+**Project Settings → API**. Copie dois valores:
 
-1. No painel, clique em **New project**.
-2. Preencha:
-   - **Name:** `bazar-do-renascer`
-   - **Database Password:** clique em *Generate a password* e **guarde essa senha** num gerenciador de senhas. Ela é a senha do PostgreSQL e não aparece de novo.
-   - **Region:** `South America (São Paulo)` — menor latência para usuários no Brasil.
-3. Clique em **Create new project** e aguarde ~2 minutos até o status ficar verde.
+| Campo no painel | Vai para |
+|---|---|
+| **Project URL** (`https://xxxx.supabase.co`) | `VITE_SUPABASE_URL` |
+| **anon / public key** | `VITE_SUPABASE_ANON_KEY` |
 
-## 3. Aplicar o schema
+> **Nunca** copie a `service_role key` para o front. Ela ignora todo o RLS —
+> quem tiver ela lê e apaga o banco inteiro. Ela só existe para código de
+> servidor (Edge Function, webhook).
 
-1. No menu lateral, abra **SQL Editor** → **New query**.
-2. Abra o arquivo [`schema.sql`](schema.sql) deste repositório, copie **todo** o conteúdo e cole no editor.
-3. Clique em **Run** (ou `Ctrl+Enter`). Deve terminar com `Success. No rows returned`.
+Na raiz do projeto:
 
-> Se aparecer erro `type "user_role" already exists`, o schema já foi aplicado. Para recomeçar do zero: **Database → Backups → Restore** ou rode `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` e aplique novamente.
+```bash
+cp .env.example .env
+```
 
-O que foi criado:
+Preencha o `.env`. Ele já está no `.gitignore` — não commite.
 
-| Objeto | Função |
-|--------|--------|
-| `profiles`, `addresses`, `products`, `sales`, `donations` | Tabelas do app |
-| `handle_new_user()` | Cria o `profile` automaticamente quando alguém se cadastra |
-| `checkout()`, `donate()` | Únicas formas de registrar venda/doação (validação no servidor) |
-| `monthly_summary()` | Dados do dashboard (só admin recebe linhas) |
-| Policies RLS | Cada usuário só enxerga o que é dele; admin enxerga tudo |
+---
 
-## 4. Confirmar que a segurança está ativa
+## 2. Criar o schema
 
-1. Menu **Database → Tables**. Cada tabela deve mostrar o selo **RLS enabled**.
-2. Menu **Advisors → Security Advisor**. Deve aparecer **0 errors**. Se listar "RLS disabled" ou "function search_path mutable", o schema não foi aplicado por completo — repita o passo 3.
+**SQL Editor → New query**. Cole o conteúdo de [`schema.sql`](schema.sql)
+inteiro e rode (`Ctrl+Enter`).
 
-## 5. Criar os usuários de demonstração
+Isso cria tabelas, triggers, RPCs, views, políticas de RLS, grants e o bucket
+`product-photos`. É idempotente: pode rodar de novo sem quebrar.
 
-O app não cadastra senhas no banco; quem faz isso é o **Supabase Auth**.
+Confira em **Table Editor** que apareceram: `profiles`, `addresses`,
+`products`, `sales`, `donations`. Todas devem mostrar o cadeado de **RLS
+enabled**.
 
-1. Menu **Authentication → Users → Add user → Create new user**.
-2. Crie os dois:
+---
 
-   | E-mail | Senha | Auto Confirm User |
-   |--------|-------|-------------------|
-   | `admin@bazar.com` | `admin123` | ✅ marcado |
-   | `maria@email.com` | `maria123` | ✅ marcado |
+## 3. Desligar a confirmação de e-mail
 
-   *(Auto Confirm evita precisar clicar em link de confirmação por e-mail.)*
-3. Confira em **Table Editor → profiles**: as duas linhas devem ter aparecido sozinhas (trigger `handle_new_user`), ambas com `role = user`.
+Você escolheu cadastro sem confirmação. Isso é **configuração do painel**, não
+dá para fazer por SQL:
 
-> Senhas de demo são fracas de propósito. Em produção, ative **Authentication → Policies → Password strength** e desative *Auto Confirm*.
+**Authentication → Sign In / Providers → Email** → desmarque
+**"Confirm email"** → Save.
 
-## 6. Carregar os dados de demonstração e promover o admin
+Com isso, quem se cadastra entra direto. (Se um dia quiser exigir confirmação,
+é só remarcar — o app já mostra a mensagem certa.)
 
-1. **SQL Editor → New query**, cole o conteúdo de [`seed.sql`](seed.sql) e clique em **Run**.
-2. Isso: promove `admin@bazar.com` para `role = admin`, cadastra 13 peças, 3 vendas e 4 doações.
-3. Verifique em **Table Editor → products**: 10 `available` e 3 `sold`.
+---
 
-Para promover qualquer outro usuário a admin no futuro, **só por SQL** (o app não consegue, por design):
+## 4. Popular o catálogo (opcional)
+
+**SQL Editor → New query** com o conteúdo de [`seed.sql`](seed.sql). Cria 10
+peças de exemplo para a vitrine não nascer vazia.
+
+Pode pular se for cadastrar as peças reais pelo app.
+
+---
+
+## 5. Rodar o app
+
+```bash
+npm install
+npm run dev
+```
+
+A vitrine (`/loja`) deve carregar **sem login** — ela é pública.
+
+---
+
+## 6. Criar o admin
+
+Não existe "conta de admin" pronta: todo cadastro nasce como `user`. A
+promoção é manual, por SQL — é de propósito, para ninguém virar admin sozinho.
+
+> O trigger `protect_role` deixa o papel mudar quando `auth.uid()` é `NULL`,
+> que é o caso do SQL Editor. Sem essa brecha o primeiro admin seria impossível
+> de criar: só admin promove, mas não existe admin ainda. Pela API pública a
+> promoção continua bloqueada por duas barreiras (grant de coluna e o próprio
+> trigger).
+
+1. No app, acesse `/cadastro` e crie sua conta normalmente.
+2. No **SQL Editor**, rode (troque pelo seu e-mail):
 
 ```sql
-UPDATE public.profiles SET role = 'admin' WHERE id = (SELECT id FROM auth.users WHERE email = 'pessoa@email.com');
+UPDATE public.profiles SET role = 'admin'
+WHERE id = (SELECT id FROM auth.users WHERE email = 'seu@email.com');
 ```
 
-## 7. Pegar as chaves para o app
+3. **Saia e entre de novo** no app. Você cai no painel do bazar.
 
-1. Menu **Project Settings → API**.
-2. Copie:
-   - **Project URL** → ex.: `https://abcdefgh.supabase.co`
-   - **anon public** key → começa com `eyJ...`
-3. **Nunca** copie a `service_role` key para o app. Ela ignora todo o RLS. Ela fica só em back-end/servidor.
-
-No repositório do app, crie o arquivo `.env` (já está no `.gitignore`):
-
-```
-EXPO_PUBLIC_SUPABASE_URL=https://abcdefgh.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-```
-
-## 8. Testar o banco antes de tocar no app
-
-No **SQL Editor**, simule um usuário logado para conferir que o RLS funciona:
+Para conferir quem é admin:
 
 ```sql
--- Vira a "Maria" (troque pelo id dela em auth.users)
-SELECT set_config('request.jwt.claims', json_build_object('sub', (SELECT id FROM auth.users WHERE email='maria@email.com'), 'role','authenticated')::text, true);
-SET LOCAL ROLE authenticated;
+SELECT u.email, p.name, p.role
+FROM public.profiles p JOIN auth.users u ON u.id = p.id
+ORDER BY p.role, p.name;
+```
 
-SELECT count(*) FROM public.products;          -- 13: catálogo é visível
-SELECT count(*) FROM public.sales;             -- 3: só as compras dela
-SELECT * FROM public.monthly_summary();        -- 0 linhas: não é admin
-UPDATE public.profiles SET role = 'admin';     -- ERRO: permissão negada (esperado!)
+---
 
+## 7. Testar se a segurança está de pé
+
+Vale gastar 2 minutos aqui. Rode no **SQL Editor**:
+
+```sql
+-- Visitante não logado: deve ver SÓ o catálogo.
+SET ROLE anon;
+SELECT count(*) FROM public.products;   -- funciona (vitrine é pública)
+SELECT count(*) FROM public.profiles;   -- deve dar ERRO de permissão
+SELECT count(*) FROM public.addresses;  -- deve dar ERRO de permissão
 RESET ROLE;
 ```
 
-Teste também o fluxo de compra (com o mesmo `set_config` acima, mas Maria ainda não tem endereço):
+Se `profiles` ou `addresses` responderem em vez de dar erro, **pare** e revise
+os grants no fim do `schema.sql`.
 
-```sql
-SELECT public.checkout(ARRAY['00000000-0000-0000-0000-0000000000a1']::uuid[], 'Pix');
--- ERRO "Endereço de entrega obrigatório" — igual ao comportamento do app.
-```
-
-## 9. Conectar o app (para o time de front-end)
-
-```bash
-npx expo install @supabase/supabase-js @react-native-async-storage/async-storage react-native-url-polyfill
-```
-
-```js
-// src/lib/supabase.js
-import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
-
-export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
-  auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
-});
-```
-
-Substituições no [`AppContext.js`](../src/context/AppContext.js):
-
-| Hoje (mock) | Com Supabase |
-|-------------|--------------|
-| `login(email, password)` | `supabase.auth.signInWithPassword({ email, password })` + `from('profiles').select().single()` |
-| `products` | `from('products').select().eq('status','available')` |
-| `addProduct(p)` | `from('products').insert({ ...p, created_by: user.id })` |
-| `updateUser({ address })` | `from('addresses').upsert({ user_id, ...address })` |
-| `checkout(payment)` | `supabase.rpc('checkout', { product_ids: cart, payment })` |
-| `donate(amount, payment)` | `supabase.rpc('donate', { amount, payment })` |
-| Dashboard | `supabase.rpc('monthly_summary')` |
-| `sales` / `donations` (admin ou próprio) | `from('sales').select()` — o RLS já filtra |
-
-## 10. Checklist de segurança antes de publicar
-
-- [ ] `service_role` key nunca no app nem no git.
-- [ ] **Authentication → URL Configuration**: Site URL e Redirect URLs só com domínios seus.
-- [ ] **Authentication → Rate limits**: manter os padrões (protege contra força bruta no login).
-- [ ] **Security Advisor** com 0 erros.
-- [ ] Backups diários ativos (**Database → Backups**, incluso no Free por 7 dias).
-- [ ] Se for usar upload de fotos: criar bucket **privado** em Storage com policy `is_admin()` para `INSERT`.
+No próprio app, teste também:
+- Entrar como usuário comum e tentar ir em `/admin` → é redirecionado.
+- Em **Vendas**, o usuário comum vê só as compras dele; o admin vê todas.
 
 ---
 
-### Problemas comuns
+## 8. Publicar
 
-| Sintoma | Causa | Solução |
-|---------|-------|---------|
-| `permission denied for table products` | Chamada sem sessão (anon) | Fazer login antes; anon não tem acesso a nada |
-| `new row violates row-level security policy` | Usuário comum tentando cadastrar peça | Promover a admin via SQL (passo 6) |
-| Profile não apareceu após criar usuário | Trigger `on_auth_user_created` ausente | Reaplicar `schema.sql` |
-| `checkout` retorna "não estão mais disponíveis" | Outra pessoa comprou antes | Comportamento correto; recarregar a vitrine |
+O build é estático. Em Netlify/Vercel/Cloudflare Pages:
+
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Variáveis de ambiente: `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
+
+Depois, no Supabase: **Authentication → URL Configuration** → coloque a URL do
+site em **Site URL**.
+
+> Como é SPA, o host precisa devolver `index.html` para qualquer rota, senão
+> `/produto/xxx` dá 404 ao recarregar. Netlify/Vercel fazem isso sozinhos para
+> projetos Vite; em outro host, configure o fallback.
+
+---
+
+## Problemas comuns
+
+| Sintoma | Causa provável |
+|---|---|
+| Tela branca e erro "Supabase não configurado" | `.env` faltando ou sem as duas variáveis. Reinicie o `npm run dev` — Vite só lê o `.env` no boot. |
+| Vitrine vazia mas sem erro | Não rodou o `seed.sql` e não cadastrou peça nenhuma. |
+| "E-mail ou senha inválidos" logo após cadastrar | Confirmação de e-mail ainda ligada (passo 3). |
+| Cadastro OK mas login não entra | Idem: usuário existe mas está sem confirmar. |
+| Admin não vê o painel | Esqueceu de sair e entrar de novo depois do `UPDATE`. |
+| Upload de foto dá erro de permissão | Sua conta não é admin, ou o passo 2 não criou o bucket. |
+| `new row violates row-level security` ao cadastrar peça | Idem: só admin escreve em `products`. |
+
+---
+
+## Mapa: função do app → banco
+
+| `AppContext` | Supabase |
+|---|---|
+| `signIn` | `auth.signInWithPassword()` |
+| `signUp` | `auth.signUp()` → trigger `handle_new_user` cria o profile |
+| `signOut` | `auth.signOut()` |
+| `loadProducts` | `from('products').select()` — anon incluído |
+| `loadPrivate` | `profiles`, `addresses`, views `sales_detail` e `donations_detail` |
+| `updateUser` | `from('profiles').update({name, phone})` — `role` não é permitido |
+| `saveAddress` | `from('addresses').upsert()` |
+| `uploadPhoto` | `storage.from('product-photos').upload()` |
+| `addProduct` / `updateProduct` / `removeProduct` | `from('products')` — RLS restringe a admin |
+| `checkout` | `rpc('checkout', { product_ids, payment })` → `order_id` |
+| `donate` | `rpc('donate', { amount, payment, anonymous })` |
+| (logística de entrega) | `rpc('order_shipping', { p_order_id })` — só admin |

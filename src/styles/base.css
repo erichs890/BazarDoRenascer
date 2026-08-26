@@ -1,0 +1,242 @@
+@import '@fontsource-variable/fraunces/index.css';
+@import '@fontsource-variable/manrope/index.css';
+@import './tokens.css';
+@import './components.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* sem "puxar e soltar" da página: o app não é um documento */
+  overscroll-behavior-y: none;
+}
+
+img, svg { display: block; max-width: 100%; }
+img { height: auto; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+/* Foco visível sempre — mas só para teclado, para não poluir o toque. */
+:focus-visible {
+  outline: 3px solid var(--primary-ink);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+::selection { background: var(--primary-glow); }
+
+/* --- layout do app -------------------------------------------------------- */
+/* Coluna de app centralizada: no celular ocupa tudo, no desktop vira um
+   "aparelho" no centro em vez de esticar formulários por 1400px. */
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  position: relative;
+  background: var(--bg);
+}
+@media (min-width: 900px) {
+  body { background: var(--surface-2); }
+  .shell {
+    box-shadow: var(--e-2);
+    border-inline: 1px solid var(--border);
+  }
+}
+
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: calc(var(--safe-t) + var(--sp-2)) var(--sp-3) var(--sp-2);
+  min-height: calc(var(--safe-t) + 56px);
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur);
+}
+.appbar[data-scrolled='true'] { border-bottom-color: var(--border); }
+.appbar h1 {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  font-weight: 700;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main {
+  flex: 1;
+  padding: var(--sp-4);
+  /* espaço para a barra inferior não cobrir o conteúdo */
+  padding-bottom: calc(var(--nav-h) + var(--safe-b) + var(--sp-6));
+}
+.main--flush { padding-inline: 0; }
+.main--flush > * { padding-inline: var(--sp-4); }
+.main--center { display: flex; flex-direction: column; justify-content: center; }
+.main--no-nav { padding-bottom: calc(var(--safe-b) + var(--sp-6)); }
+
+/* --- barra inferior (tab bar) --------------------------------------------- */
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding-bottom: var(--safe-b);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border);
+}
+.tabbar a {
+  min-height: var(--nav-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--step--1);
+  font-weight: 600;
+  position: relative;
+  transition: color var(--dur-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar a[aria-current='page'] { color: var(--primary-ink); }
+.tabbar a[aria-current='page'] svg { fill: color-mix(in srgb, currentColor 22%, transparent); }
+.tabbar a::before {              /* indicador de aba ativa */
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 28px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transition: transform var(--dur) var(--ease-out);
+}
+.tabbar a[aria-current='page']::before { transform: scaleX(1); }
+.tabbar .badge-dot {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  margin-left: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 5px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-primary);
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface);
+}
+
+/* Desktop largo: a navegação vira lateral (adaptive navigation) */
+@media (min-width: 1100px) {
+  :root { --shell-max: 820px; }
+  .tabbar {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    left: max(0px, calc(50% - 820px / 2 - 92px));
+    width: 92px;
+    max-width: none;
+    margin: 0;
+    grid-auto-flow: row;
+    grid-auto-rows: max-content;
+    align-content: center;
+    gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-2);
+    border-top: 0;
+    border-right: 1px solid var(--border);
+    background: transparent;
+    backdrop-filter: none;
+  }
+  .tabbar a { min-height: 68px; border-radius: var(--r-md); }
+  .tabbar a[aria-current='page'] { background: var(--primary-soft); }
+  .tabbar a::before { top: 50%; left: -8px; width: 3px; height: 28px; margin-top: -14px; border-radius: 3px; }
+  .main { padding-bottom: calc(var(--safe-b) + var(--sp-6)); }
+}
+
+/* --- atmosfera: blobs de gradiente atrás do conteúdo ---------------------- */
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.atmosphere::before, .atmosphere::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+}
+.atmosphere::before {
+  width: 340px; height: 340px; top: -140px; right: -90px;
+  background: radial-gradient(circle, var(--primary-glow), transparent 70%);
+}
+.atmosphere::after {
+  width: 380px; height: 380px; bottom: -160px; left: -110px;
+  background: radial-gradient(circle, var(--primary-soft), transparent 70%);
+}
+.atmosphere[data-tone='accent']::after {
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+}
+
+/* --- movimento ------------------------------------------------------------ */
+/* Uma entrada de página orquestrada vale mais que dez micro-animações soltas. */
+@keyframes rise { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.rise {
+  animation: rise var(--dur-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.pop { animation: pop 420ms var(--ease-out) backwards; }
+
+/* Transição entre rotas com a View Transitions API (Chrome/Edge/Safari 18). */
+::view-transition-old(root) { animation: fade-out 120ms var(--ease-in) both; }
+::view-transition-new(root) { animation: rise var(--dur) var(--ease-out) both; }
+@keyframes fade-out { to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}

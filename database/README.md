@@ -33,8 +33,8 @@ profiles   1──* donations                (donor_id NULL = anônimo)
 
 | Camada | O que garante |
 |--------|---------------|
-| **RLS + FORCE** em todas as tabelas | Sem policy = sem acesso, inclusive para o dono da tabela |
-| **anon sem grants** | Não logado não lê nada (vitrine exige login) |
+| **RLS** em todas as tabelas | Sem policy = sem acesso para `anon` e `authenticated` (o que a internet enxerga) |
+| **anon só lê `products`** | Vitrine é pública; pessoas, endereços, vendas e doações exigem login |
 | **Grant de coluna** em `profiles` | `authenticated` só pode atualizar `name` e `phone`; `role` é inalterável pelo app |
 | Trigger `protect_role` | Segunda barreira: só admin muda papel |
 | Trigger `protect_sold_product` | Peça vendida não pode ser editada nem apagada |

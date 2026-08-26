@@ -1,0 +1,99 @@
+/* ============================================================================
+   Tokens — fonte única de verdade. Nenhum hex solto nos componentes.
+   Marca herdada do app React Native (ciano + âmbar), agora com modo escuro.
+   ========================================================================== */
+:root {
+  color-scheme: light dark;
+
+  /* --- cor: papéis semânticos ------------------------------------------- */
+  --primary: #4CC4E9;          /* ciano da marca — fundo de CTA */
+  --primary-ink: #1483AB;      /* mesmo tom, legível sobre branco (AA 4.6:1) */
+  --primary-deep: #0B4F6C;
+  --primary-soft: #E3F6FC;     /* superfície tingida */
+  --primary-glow: rgba(76, 196, 233, .18);
+  --on-primary: #082A3A;       /* 9:1 sobre o ciano */
+
+  --accent: #F4B53F;           /* âmbar — doação / coração */
+  --accent-ink: #8A5A00;
+  --accent-soft: #FFF4DB;
+
+  --success: #1B9E5A;
+  --success-soft: #E4F6EC;
+  --danger: #D9363E;
+  --danger-soft: #FDEBEC;
+
+  --bg: #F4F9FB;
+  --surface: #FFFFFF;
+  --surface-2: #F4F9FB;        /* recuo dentro de um card */
+  --border: #DCE7ED;
+  --text: #0F2233;
+  --muted: #5B6E7C;            /* 5.3:1 sobre branco */
+  --scrim: rgba(11, 79, 108, .45);
+
+  /* --- tipografia fluida: escala em clamp, nunca quebra ------------------ */
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --font-body: 'Manrope Variable', system-ui, sans-serif;
+  --step--1: clamp(.75rem, .72rem + .15vw, .8125rem);
+  --step-0:  clamp(.9375rem, .91rem + .14vw, 1rem);
+  --step-1:  clamp(1.0625rem, 1.02rem + .22vw, 1.1875rem);
+  --step-2:  clamp(1.25rem, 1.16rem + .45vw, 1.5rem);
+  --step-3:  clamp(1.5rem, 1.33rem + .85vw, 2rem);
+  --step-4:  clamp(1.875rem, 1.55rem + 1.6vw, 2.75rem);
+
+  /* --- espaço: régua de 4px --------------------------------------------- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
+
+  /* --- elevação: 3 níveis, nada além --------------------------------- */
+  --e-1: 0 1px 2px rgba(11, 79, 108, .06);
+  --e-2: 0 6px 14px rgba(11, 79, 108, .07);
+  --e-3: 0 12px 32px rgba(11, 79, 108, .14);
+
+  /* --- movimento --------------------------------------------------------- */
+  --dur-fast: 150ms;
+  --dur: 240ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);   /* entrada */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);       /* saída */
+
+  --tap: 44px;                 /* alvo mínimo de toque */
+  --shell-max: 640px;          /* largura de "coluna de app" no desktop */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --nav-h: 60px;
+}
+
+/* Modo escuro: variantes tonais dessaturadas, não inversão. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --primary: #4CC4E9;
+    --primary-ink: #7BD9F5;     /* clareia para 4.5:1 sobre superfície escura */
+    --primary-deep: #A8E6F8;
+    --primary-soft: #123444;
+    --primary-glow: rgba(76, 196, 233, .12);
+    --on-primary: #05202C;
+
+    --accent: #F4B53F;
+    --accent-ink: #FFCE73;
+    --accent-soft: #3A2E12;
+
+    --success: #4ADE80;
+    --success-soft: #123123;
+    --danger: #FF7A80;
+    --danger-soft: #3B1518;
+
+    --bg: #08222F;
+    --surface: #0E2E3E;
+    --surface-2: #123849;
+    --border: #1D4A5F;
+    --text: #E8F4F9;
+    --muted: #9CB6C4;           /* 5.1:1 sobre --surface */
+    --scrim: rgba(0, 0, 0, .6);
+
+    --e-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --e-2: 0 6px 14px rgba(0, 0, 0, .45);
+    --e-3: 0 12px 32px rgba(0, 0, 0, .6);
+  }
+}

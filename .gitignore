@@ -1,6 +1,9 @@
 node_modules/
-.expo/
 dist/
+dev-dist/
+.expo/
 *.log
 .env
 .env.*
+!.env.example
+.DS_Store
