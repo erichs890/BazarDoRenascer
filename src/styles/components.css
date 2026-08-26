@@ -76,9 +76,9 @@
 .btn:hover:not(:disabled) { filter: brightness(1.05); }
 .btn:active:not(:disabled) { transform: scale(.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn--dark { background: var(--primary-deep); color: #fff; }
-.btn--accent { background: var(--accent); color: var(--on-primary); }
-.btn--danger { background: var(--danger); color: #fff; }
+.btn--dark { background: var(--primary-deep); color: var(--on-deep); }
+.btn--accent { background: var(--accent); color: var(--on-accent); }
+.btn--danger { background: var(--danger); color: var(--on-danger); }
 .btn--outline {
   background: var(--surface);
   color: var(--primary-deep);
@@ -279,7 +279,7 @@
   margin-bottom: var(--sp-4);
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--primary), #7ED8F1);
+  background: linear-gradient(135deg, var(--primary), var(--primary-bright));
   color: var(--on-primary);
 }
 .hero-card::after {
@@ -306,8 +306,8 @@
   padding: var(--sp-4);
   margin-bottom: var(--sp-4);
   border-radius: var(--r-lg);
-  background: linear-gradient(135deg, var(--accent), #FFD27A);
-  color: var(--on-primary);
+  background: linear-gradient(135deg, var(--accent), #F9A00A);
+  color: var(--on-accent);
   position: relative;
   overflow: hidden;
   text-decoration: none;
@@ -456,7 +456,7 @@ dialog.sheet[open]::backdrop { animation: fade-in var(--dur) both; }
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-pill);
   background: var(--primary-deep);
-  color: #fff;
+  color: var(--on-deep);
   box-shadow: var(--e-3);
   font-weight: 600;
   font-size: var(--step--1);

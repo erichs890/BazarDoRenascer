@@ -149,7 +149,7 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   padding-inline: 5px;
   border-radius: var(--r-pill);
   background: var(--accent);
-  color: var(--on-primary);
+  color: var(--on-accent);
   font-size: 10px;
   font-weight: 800;
   display: grid;

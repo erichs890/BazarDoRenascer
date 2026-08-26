@@ -1,48 +1,82 @@
-"""Gera os ícones do PWA a partir da marca (coração sobre o ciano da marca).
-Rodar: python scripts/gen-icons.py   — só é preciso quando a marca mudar.
+# -*- coding: utf-8 -*-
+"""Gera os ícones do PWA a partir de logo.png.
+
+Rodar: python scripts/gen-icons.py   — só quando a marca mudar.
+
+Duas decisões que valem explicação:
+
+1. O texto do logo é descartado. Num ícone de 192px "BAZAR DO RENASCER / CENTRO
+   ESPÍRITA" vira borrão. Fica só o símbolo (sol + sacolas) — é o mesmo motivo
+   pelo qual toda marca tem uma versão reduzida.
+
+2. O fundo branco vira navy. Ícone de fundo branco desaparece contra o launcher
+   claro e não tem personalidade; o navy é a cor do próprio logo e faz o sol
+   amarelo brilhar. O branco é removido por flood fill a partir dos cantos, o
+   que preserva o branco INTERNO (entre as alças das sacolas).
+
+Três formatos, porque cada sistema trata o ícone de um jeito:
+  any       cantos arredondados, arte com folga  -> Chrome/Android, desktop
+  maskable  fundo sangrando, arte em 62% central -> Android recorta em círculo,
+                                                    squircle, o que quiser
+  apple     quadrado cheio, sem transparência    -> o iOS aplica a própria máscara
 """
-import math
 from PIL import Image, ImageDraw
 
-BG_TOP, BG_BOT = (76, 196, 233), (20, 131, 171)   # primary -> primaryDark
-HEART = (255, 255, 255)
-SS = 4  # supersampling: desenha 4x maior e reduz -> bordas suaves sem antialias nativo
+SRC = 'logo.png'
+OUT = 'public/icons'
+NAVY = (1, 56, 87)         # #013857 — o navy do próprio logo
+SYMBOL_BOTTOM = 0.56       # o texto começa por volta de 56% da altura
+MARK = (255, 0, 255)       # cor-sentinela do flood fill
 
 
-def heart_points(cx, cy, scale, n=400):
-    pts = []
-    for i in range(n):
-        t = 2 * math.pi * i / n
-        x = 16 * math.sin(t) ** 3
-        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
-        pts.append((cx + x * scale, cy - y * scale))
-    return pts
+def simbolo():
+    """Recorta o símbolo e devolve num quadrado com fundo transparente."""
+    im = Image.open(SRC).convert('RGB')
+    art = im.crop((0, 0, im.width, int(im.height * SYMBOL_BOTTOM)))
+
+    # Flood fill dos quatro cantos: some só o branco EXTERNO.
+    marcado = art.copy()
+    for pt in [(0, 0), (marcado.width - 1, 0),
+               (0, marcado.height - 1), (marcado.width - 1, marcado.height - 1)]:
+        ImageDraw.floodfill(marcado, pt, MARK, thresh=40)
+
+    rgba = art.convert('RGBA')
+    pm, pa = marcado.load(), rgba.load()
+    for y in range(marcado.height):
+        for x in range(marcado.width):
+            if pm[x, y] == MARK:
+                pa[x, y] = (0, 0, 0, 0)
+
+    rgba = rgba.crop(rgba.getbbox())
+    lado = max(rgba.size)
+    quad = Image.new('RGBA', (lado, lado), (0, 0, 0, 0))
+    quad.paste(rgba, ((lado - rgba.width) // 2, (lado - rgba.height) // 2))
+    return quad
 
 
-def gradient(size):
-    img = Image.new('RGB', (1, size))
-    for y in range(size):
-        k = y / max(size - 1, 1)
-        img.putpixel((0, y), tuple(round(a + (b - a) * k) for a, b in zip(BG_TOP, BG_BOT)))
-    return img.resize((size, size))
-
-
-def icon(size, heart_ratio, radius_ratio):
-    s = size * SS
-    img = gradient(s).convert('RGBA')
-    if radius_ratio:                       # cantos arredondados (ícone "any")
-        mask = Image.new('L', (s, s), 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, s - 1, s - 1], radius=int(s * radius_ratio), fill=255)
-        img.putalpha(mask)
-    ImageDraw.Draw(img).polygon(heart_points(s / 2, s / 2, s * heart_ratio / 32), fill=HEART)
-    return img.resize((size, size), Image.LANCZOS)
+def render(art, size, escala, raio, fundo=NAVY):
+    canvas = Image.new('RGBA', (size, size), fundo + (255,))
+    alvo = max(1, int(size * escala))
+    a = art.resize((alvo, alvo), Image.LANCZOS)
+    canvas.alpha_composite(a, ((size - alvo) // 2, (size - alvo) // 2))
+    if raio:
+        # Máscara em 4x e reduzida: cantos suaves sem serrilhado.
+        m = Image.new('L', (size * 4, size * 4), 0)
+        ImageDraw.Draw(m).rounded_rectangle(
+            [0, 0, size * 4 - 1, size * 4 - 1], radius=int(size * 4 * raio), fill=255)
+        canvas.putalpha(m.resize((size, size), Image.LANCZOS))
+    return canvas
 
 
 if __name__ == '__main__':
-    icon(192, 0.62, 0.22).save('public/icons/icon-192.png')
-    icon(512, 0.62, 0.22).save('public/icons/icon-512.png')
-    # maskable: fundo sangrando até a borda, arte dentro da zona segura (80% central)
-    icon(512, 0.44, 0).save('public/icons/maskable-512.png')
-    # iOS mascara sozinho: quadrado cheio, sem transparência
-    icon(180, 0.62, 0).convert('RGB').save('public/icons/apple-touch-icon.png')
-    print('icones gerados em public/icons/')
+    art = simbolo()
+    render(art, 192, .80, .22).save(f'{OUT}/icon-192.png')
+    render(art, 512, .80, .22).save(f'{OUT}/icon-512.png')
+    # maskable: Android pode recortar 20% de cada lado — arte dentro de 62%.
+    render(art, 512, .62, 0).save(f'{OUT}/maskable-512.png')
+    # iOS mascara sozinho: quadrado cheio, sem canal alpha.
+    render(art, 180, .80, 0).convert('RGB').save(f'{OUT}/apple-touch-icon.png')
+    render(art, 48, .92, .20).save(f'{OUT}/favicon-48.png')
+    # Símbolo solto (fundo transparente) para usar dentro do app.
+    art.resize((256, 256), Image.LANCZOS).save(f'{OUT}/simbolo.png')
+    print('ícones gerados em', OUT)

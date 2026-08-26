@@ -99,7 +99,7 @@ export const KRow = ({ label, value, total }) => (
 export const Empty = ({ children }) => <p className="empty">{children}</p>;
 
 /* --- cartão de produto ----------------------------------------------------- */
-export function ProductCard({ product: p, to }) {
+export function ProductCard({ product: p, to, priority = false, first = false }) {
   return (
     <Link
       className="pcard"
@@ -107,7 +107,19 @@ export function ProductCard({ product: p, to }) {
       viewTransition
       aria-label={`${p.name}, tamanho ${p.size}, ${money(p.price)}`}
     >
-      <img src={p.image} alt="" loading="lazy" decoding="async" width="400" height="400" />
+      {/* A primeira dobra carrega adiantada; o resto é preguiçoso.
+          `fetchPriority="high"` vai só na PRIMEIRA imagem: marcar várias como
+          alta prioridade faz elas competirem entre si e atrasa justamente o
+          elemento que define o LCP. */}
+      <img
+        src={p.image}
+        alt=""
+        width="400"
+        height="400"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={first ? 'high' : 'auto'}
+        decoding="async"
+      />
       <span className="pcard__badge">
         <Badge tone={p.condition === 'Novo' ? 'success' : 'primary'}>{p.condition}</Badge>
       </span>

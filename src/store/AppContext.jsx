@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   supabase, fromDbProduct, toDbProduct, fromDbSale, fromDbDonation,
 } from '../lib/supabase';
+import { prepararFoto } from '../lib/image';
 
 const Ctx = createContext(null);
 const CART_KEY = 'bazar:cart';
@@ -124,12 +125,18 @@ export function AppProvider({ children }) {
   };
 
   /* ------------------------------------------------------------ produtos */
-  /** Sobe a foto para o bucket e devolve a URL pública. */
+  /** Redimensiona, converte e sobe a foto; devolve a URL pública. */
   const uploadPhoto = async (file) => {
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    let blob = file;
+    let ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    try {
+      ({ blob, ext } = await prepararFoto(file));
+    } catch {
+      // Se o canvas falhar, sobe o original — o bucket ainda valida tipo e tamanho.
+    }
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from('product-photos')
-      .upload(path, file, { cacheControl: '31536000', upsert: false });
+      .upload(path, blob, { cacheControl: '31536000', upsert: false, contentType: blob.type });
     if (error) return { error };
     const { data } = supabase.storage.from('product-photos').getPublicUrl(path);
     return { url: data.publicUrl };

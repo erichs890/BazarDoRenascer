@@ -168,27 +168,32 @@ Medições reais, `npm run build && npm run preview`, Chromium headless.
 Fontes cirílicas/gregas/vietnamitas ficam fora do precache (`globIgnores`) — pt-BR
 só usa latin, e isso corta ~43 KB da instalação.
 
-### Lighthouse (rota de entrada `/login`)
+### Lighthouse
 
-Rota `/loja` (a vitrine pública), mobile, 4G lento + CPU 4×, **sem banco
-ligado** (o `supabase-js` já está no bundle, mas nenhuma requisição responde):
+Medido contra o banco real, mobile, 4G lento + CPU 4×:
 
-| Categoria | Nota |
-|---|---|
-| Performance | **92** |
-| Accessibility | **100** |
-| Best Practices | **96** |
-| SEO | **100** |
+| Rota | Performance | Acessibilidade | Boas práticas | SEO |
+|---|---|---|---|---|
+| `/login` | **93** | **100** | **100** | **100** |
+| `/loja` (vitrine) | **73** | **100** | **100** | **100** |
 
-FCP 2,2 s · LCP 3,0 s · TBT 10 ms · CLS 0,025.
+Os 20 pontos de diferença **não são do app** — são das fotos de exemplo. O
+`seed.sql` aponta para `picsum.photos`, e cada foto custa dois saltos:
 
-Antes do Supabase, a rota de login marcava 97/100/100/100 (mobile) e
-100/100/100/100 (desktop) — a diferença é o peso do `supabase-js`. As quatro
-metas seguem acima de 90; a margem em Performance ficou apertada, então vale
-remedir depois de ligar o banco.
+| Host | Requisições | Bytes | Pior caso |
+|---|---|---|---|
+| `picsum.photos` (só o redirect) | 8 | 8 KB | 1.144 ms |
+| `fastly.picsum.photos` (a foto) | 8 | 319 KB | 2.370 ms |
+| Supabase (a query) | 2 | 2 KB | 851 ms |
+| O app (JS + CSS + fontes) | 9 | 254 KB | **19 ms** |
 
-> A categoria "PWA" foi removida do Lighthouse 12. Os critérios de
-> instalabilidade foram verificados um a um na lista acima.
+Com peças cadastradas de verdade isso se resolve sozinho: as fotos passam a
+vir do Supabase Storage — mesmo host, já com `preconnect`, sem redirect, e
+convertidas para WebP de 1200px no upload. **Refaça a medição depois de
+cadastrar peças reais**; o número com `picsum` mede o picsum.
+
+Contraste de cor: **0 problemas** nos dois temas (auditoria do Lighthouse mais
+a verificação dos 16 pares em `tokens.css`).
 
 ---
 
@@ -249,6 +254,13 @@ Três decisões que valem explicação:
 Duas barreiras para a promoção a admin não é exagero: o grant de coluna
 impede pela API, o trigger impede mesmo que alguém erre um grant depois.
 
+**Armadilha que custou caro:** nunca levante `RAISE EXCEPTION` com `ERRCODE
+40001` (serialization_failure) ou `40P01` (deadlock) numa RPC. O PostgREST
+trata esses códigos como falha transitória e **retenta a requisição sozinho**.
+Se a condição for permanente — "esta peça já foi vendida" — ele retenta para
+sempre: a conexão pendura e vira um DoS de uma linha. Erros de regra de negócio
+usam `P0001`.
+
 ### `FORCE ROW LEVEL SECURITY`: por que está desligado
 
 `FORCE` submete também o **dono** da tabela às policies — e é o dono que
@@ -270,12 +282,25 @@ servidor.
 
 ## Design
 
-A marca do app RN foi mantida (ciano `#4CC4E9` + âmbar `#F4B53F`, Fraunces +
-Manrope) — é distintiva e já tinha contraste calculado. O que mudou:
+A paleta vem do **logo do bazar** (`logo.png`), amostrada direto do arquivo:
+navy `#013857`, azul `#05A5E6`, amarelo `#FECD0D`, laranja `#F97F09`. As
+tipografias Fraunces + Manrope foram mantidas do app RN.
+
+As cores cruas do logo servem como **fundo**, não como texto — o azul dá 2,8:1
+sobre branco e o amarelo, 1,5:1. Por isso cada matiz tem três papéis:
+`-bright` (a cor do logo, decorativa), a base (fundo de ação) e `-ink`
+(texto/ícone sobre superfície clara), cada um calibrado contra o pior fundo em
+que aparece. O que mais mudou:
 
 - **Tokens semânticos** em `:root`. Nenhum componente conhece um hex.
 - **Modo escuro** (não existia no RN): variantes tonais dessaturadas, não
-  inversão. `--primary-ink` clareia no escuro para manter 4.5:1.
+  inversão. `--primary-ink` clareia no escuro para manter 4,5:1.
+- **Tokens para superfícies que invertem.** `--primary-deep` é navy no claro e
+  azul-claro no escuro; um `color: #fff` fixo por cima virava 1,85:1 no escuro.
+  Daí `--on-deep` e `--on-danger`, que alternam junto.
+- **Ícone do PWA gerado do logo** por `scripts/gen-icons.py`: descarta o texto
+  (ilegível em 192px), remove o fundo branco por flood fill preservando o
+  branco entre as alças, e assenta o símbolo sobre o navy da marca.
 - **Tipografia fluida**: escala em `clamp()`, de 375 px a 1440 px sem quebra.
 - **Alvos de toque ≥ 44 px** em tudo: botões 52 px, campos 50 px, chips e
   ícones 44 px.

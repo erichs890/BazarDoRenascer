@@ -90,7 +90,7 @@ export default function Shop() {
         <div className="grid">
           {list.map((p, i) => (
             <Rise key={p.id} i={i}>
-              <ProductCard product={p} to={`/produto/${p.id}`} />
+              <ProductCard product={p} to={`/produto/${p.id}`} priority={i < 4} first={i === 0} />
             </Rise>
           ))}
         </div>

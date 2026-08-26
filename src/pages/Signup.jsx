@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { friendlyError } from '../lib/supabase';
 import { Screen } from '../components/AppShell';
+import Logo from '../components/Logo';
 import { Button, Field, Rise, IconButton, toast } from '../components/ui';
 
 const MIN_PW = 6;
@@ -48,9 +49,7 @@ export default function Signup() {
   return (
     <Screen title="Criar conta" back noNav atmosphere="primary" center>
       <Rise i={0} className="mb-5">
-        <div className="orb orb--sm orb--brand mb-4">
-          <Heart size={30} fill="currentColor" aria-hidden="true" />
-        </div>
+        <div className="mb-4"><Logo size={64} /></div>
         <h1 className="t-title">
           Faça parte do<br />
           <span className="t-soft" style={{ color: 'var(--primary-ink)' }}>Renascer.</span>

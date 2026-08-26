@@ -194,7 +194,11 @@ BEGIN
 
   GET DIAGNOSTICS affected = ROW_COUNT;
   IF affected <> cardinality(product_ids) THEN
-    RAISE EXCEPTION 'Uma ou mais peças não estão mais disponíveis' USING ERRCODE = '40001';
+    -- NÃO usar ERRCODE 40001/40P01 aqui: o PostgREST trata esses códigos como
+    -- falha transitória e RETENTA a requisição sozinho. Como "peça vendida" é
+    -- permanente, ele retentaria para sempre — a conexão pendura e vira DoS.
+    -- P0001 é erro de aplicação: resposta imediata, sem retry.
+    RAISE EXCEPTION 'Uma ou mais peças não estão mais disponíveis' USING ERRCODE = 'P0001';
   END IF;
   RETURN oid;
 END $$;

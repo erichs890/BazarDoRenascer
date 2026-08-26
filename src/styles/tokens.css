@@ -1,34 +1,51 @@
 /* ============================================================================
    Tokens — fonte única de verdade. Nenhum hex solto nos componentes.
-   Marca herdada do app React Native (ciano + âmbar), agora com modo escuro.
+   ----------------------------------------------------------------------------
+   A paleta vem do logo do bazar (logo.png), amostrada direto do arquivo:
+     navy    #013857   texto "BAZAR DO RENASCER"
+     azul    #05A5E6   sacola esquerda
+     amarelo #FECD0D   sol e sacola do meio
+     laranja #F97F09   sacola direita e o coração
+   As cores cruas do logo servem como FUNDO, não como texto: o azul dá 2,8:1
+   sobre branco e o amarelo, 1,5:1. Por isso cada matiz tem três papéis —
+   `-bright` (a cor do logo, decorativa), a base (fundo de ação, com branco por
+   cima) e `-ink` (texto/ícone sobre superfície clara). Os valores foram
+   calibrados contra o pior fundo em que cada um aparece; os 16 pares em uso
+   passam em 4,5:1 nos dois temas.
    ========================================================================== */
 :root {
   color-scheme: light dark;
 
   /* --- cor: papéis semânticos ------------------------------------------- */
-  --primary: #4CC4E9;          /* ciano da marca — fundo de CTA */
-  --primary-ink: #1483AB;      /* mesmo tom, legível sobre branco (AA 4.6:1) */
-  --primary-deep: #0B4F6C;
-  --primary-soft: #E3F6FC;     /* superfície tingida */
-  --primary-glow: rgba(76, 196, 233, .18);
-  --on-primary: #082A3A;       /* 9:1 sobre o ciano */
+  --primary: #0476A5;          /* fundo de CTA — branco por cima dá 5,07:1 */
+  --primary-bright: #05A5E6;   /* o azul do logo: gradientes, detalhes */
+  --primary-ink: #0476A5;      /* texto/ícone azul sobre claro (5,07:1) */
+  --primary-deep: #013857;     /* navy do logo — títulos, botão escuro */
+  --primary-soft: #E3F5FC;     /* superfície tingida */
+  --primary-glow: rgba(5, 165, 230, .18);
+  --on-primary: #FFFFFF;
 
-  --accent: #F4B53F;           /* âmbar — doação / coração */
-  --accent-ink: #8A5A00;
-  --accent-soft: #FFF4DB;
+  --accent: #FECD0D;           /* amarelo do sol — doação */
+  --accent-ink: #AE5804;       /* laranja do logo, legível sobre claro (5:1) */
+  --accent-soft: #FEF3C8;
+  --on-accent: #013857;        /* navy sobre o amarelo (8,19:1) */
 
-  --success: #1B9E5A;
-  --success-soft: #E4F6EC;
-  --danger: #D9363E;
-  --danger-soft: #FDEBEC;
+  --success: #1B8A57;
+  --success-soft: #E2F4EB;
+  --danger: #C62A32;
+  --danger-soft: #FCEAEB;
+  /* Texto sobre superfícies que INVERTEM de claridade entre os temas.
+     Sem estes, o #fff fixo virava branco-sobre-azul-claro no escuro. */
+  --on-deep: #FFFFFF;
+  --on-danger: #FFFFFF;
 
   --bg: #F4F9FB;
   --surface: #FFFFFF;
-  --surface-2: #F4F9FB;        /* recuo dentro de um card */
-  --border: #DCE7ED;
-  --text: #0F2233;
-  --muted: #5B6E7C;            /* 5.3:1 sobre branco */
-  --scrim: rgba(11, 79, 108, .45);
+  --surface-2: #EFF6FA;        /* recuo dentro de um card */
+  --border: #DEE8ED;
+  --text: #013451;
+  --muted: #517285;            /* 5,13:1 sobre branco */
+  --scrim: rgba(1, 56, 87, .5);
 
   /* --- tipografia fluida: escala em clamp, nunca quebra ------------------ */
   --font-display: 'Fraunces Variable', Georgia, serif;
@@ -46,10 +63,10 @@
 
   --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
 
-  /* --- elevação: 3 níveis, nada além --------------------------------- */
-  --e-1: 0 1px 2px rgba(11, 79, 108, .06);
-  --e-2: 0 6px 14px rgba(11, 79, 108, .07);
-  --e-3: 0 12px 32px rgba(11, 79, 108, .14);
+  /* --- elevação: 3 níveis, nada além ------------------------------------ */
+  --e-1: 0 1px 2px rgba(1, 56, 87, .06);
+  --e-2: 0 6px 14px rgba(1, 56, 87, .08);
+  --e-3: 0 12px 32px rgba(1, 56, 87, .16);
 
   /* --- movimento --------------------------------------------------------- */
   --dur-fast: 150ms;
@@ -68,29 +85,33 @@
 /* Modo escuro: variantes tonais dessaturadas, não inversão. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --primary: #4CC4E9;
-    --primary-ink: #7BD9F5;     /* clareia para 4.5:1 sobre superfície escura */
-    --primary-deep: #A8E6F8;
-    --primary-soft: #123444;
-    --primary-glow: rgba(76, 196, 233, .12);
-    --on-primary: #05202C;
+    --primary: #05ACF0;
+    --primary-bright: #05A5E6;
+    --primary-ink: #05ACF0;      /* clareia para manter 5,79:1 sobre a superfície */
+    --primary-deep: #55CBFB;
+    --primary-soft: #123A50;
+    --primary-glow: rgba(5, 165, 230, .14);
+    --on-primary: #04131C;
 
-    --accent: #F4B53F;
-    --accent-ink: #FFCE73;
-    --accent-soft: #3A2E12;
+    --accent: #FECD0D;
+    --accent-ink: #FECB01;
+    --accent-soft: #3B2E09;
+    --on-accent: #04131C;
 
-    --success: #4ADE80;
-    --success-soft: #123123;
+    --success: #45D183;
+    --success-soft: #0F2E20;
     --danger: #FF7A80;
-    --danger-soft: #3B1518;
+    --danger-soft: #3A1417;
+    --on-deep: #04131C;
+    --on-danger: #2A0A0C;
 
-    --bg: #08222F;
-    --surface: #0E2E3E;
-    --surface-2: #123849;
-    --border: #1D4A5F;
-    --text: #E8F4F9;
-    --muted: #9CB6C4;           /* 5.1:1 sobre --surface */
-    --scrim: rgba(0, 0, 0, .6);
+    --bg: #08202C;
+    --surface: #0D2A3A;
+    --surface-2: #123545;
+    --border: #1D4A62;
+    --text: #E4F1F8;
+    --muted: #7C9EB1;           /* 5,24:1 sobre --surface */
+    --scrim: rgba(0, 0, 0, .62);
 
     --e-1: 0 1px 2px rgba(0, 0, 0, .4);
     --e-2: 0 6px 14px rgba(0, 0, 0, .45);

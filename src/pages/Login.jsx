@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { friendlyError } from '../lib/supabase';
 import { Screen, InstallPrompt } from '../components/AppShell';
+import Logo from '../components/Logo';
 import { Button, Field, Rise, IconButton } from '../components/ui';
 
 export default function Login() {
@@ -34,14 +35,12 @@ export default function Login() {
     <Screen atmosphere="primary" center noNav>
       <Rise i={0} className="mb-5">
         <div className="between mb-4">
-          <div className="orb orb--sm orb--brand" style={{ marginBottom: 0 }}>
-            <Heart size={30} fill="currentColor" aria-hidden="true" />
-          </div>
+          <Logo size={64} />
           <Link className="link-btn cluster" to="/loja">
             <ArrowLeft size={18} aria-hidden="true" /> Ver a vitrine
           </Link>
         </div>
-        <p className="t-label">Bazar beneficente</p>
+        <p className="t-label">Centro Espírita · Bazar beneficente</p>
         <h1 className="t-display">
           Bazar do<br />
           <span className="t-soft" style={{ color: 'var(--primary-ink)' }}>Renascer</span>

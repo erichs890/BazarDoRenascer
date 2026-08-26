@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -7,12 +7,29 @@ import { VitePWA } from 'vite-plugin-pwa';
 //   fotos do bucket            -> CacheFirst 30d (nome é uuid, conteúdo não muda)
 //   REST do Supabase           -> NetworkFirst (preço/estoque precisam ser frescos)
 //   auth do Supabase           -> NetworkOnly (token nunca vem do cache)
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // O Vite nao joga o .env em process.env — precisa carregar explicitamente.
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  return {
   plugins: [
     react(),
+    {
+      // O primeiro dado da vitrine vem do Supabase: abrir a conexão junto com o
+      // HTML economiza DNS + TLS no caminho crítico. No JS chegaria tarde.
+      name: 'preconnect-supabase',
+      transformIndexHtml(html) {
+        const url = env.VITE_SUPABASE_URL;
+        if (!url) return html;
+        return html.replace('</head>',
+          `  <link rel="preconnect" href="${url}" crossorigin />
+`
+          + `    <link rel="dns-prefetch" href="${url}" />
+  </head>`);
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/*.png', 'icons/*.svg'],
+      includeAssets: ['icons/*.png'],
       manifest: {
         id: '/',
         name: 'Bazar do Renascer',
@@ -25,8 +42,8 @@ export default defineConfig({
         display: 'standalone',
         display_override: ['standalone', 'minimal-ui'],
         orientation: 'portrait',
-        background_color: '#F4F9FB',
-        theme_color: '#4CC4E9',
+        background_color: '#013857',
+        theme_color: '#013857',
         categories: ['shopping', 'lifestyle'],
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -79,4 +96,5 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
+  };
 });
