@@ -30,21 +30,22 @@ export default function Products() {
   };
 
   return (
-    <Screen title="Peças">
-      <Field
-        type="search" value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder="Buscar peça..." aria-label="Buscar peça"
-      />
+    <Screen title="Peças" wide>
+      <div className="toolbar">
+        <Field
+          type="search" value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar peça..." aria-label="Buscar peça"
+        />
+        <Button
+          icon={<Plus size={20} aria-hidden="true" />}
+          onClick={() => navigate('/admin/produtos/novo')}
+        >
+          Cadastrar nova peça
+        </Button>
+      </div>
       <Chips label="Status" options={STATUS} value={status} onChange={setStatus} allLabel="Todos" />
-      <Button
-        className="mb-4"
-        icon={<Plus size={20} aria-hidden="true" />}
-        onClick={() => navigate('/admin/produtos/novo')}
-      >
-        Cadastrar nova peça
-      </Button>
 
-      {list.length ? list.map((p, i) => {
+      {list.length ? <div className="list-grid">{list.map((p, i) => {
         const sold = p.status === 'sold';
         return (
           <Rise key={p.id} i={i}>
@@ -74,7 +75,7 @@ export default function Products() {
             </div>
           </Rise>
         );
-      }) : <Empty>Nenhuma peça encontrada.</Empty>}
+      })}</div> : <Empty>Nenhuma peça encontrada.</Empty>}
 
       {/* Confirmação antes de ação destrutiva. */}
       <Sheet open={!!toRemove} onClose={() => setToRemove(null)} title="Remover peça">

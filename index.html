@@ -13,6 +13,18 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="icon" href="/icons/favicon-48.png" type="image/png" sizes="48x48" />
     <title>Bazar do Renascer</title>
+    <!-- Tema antes da primeira pintura (sem "piscar" claro no modo escuro).
+         Padrão: o do sistema; o botão de tema salva a escolha. Ver src/lib/theme.js -->
+    <script>
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('bazar:theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

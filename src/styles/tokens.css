@@ -14,7 +14,7 @@
    passam em 4,5:1 nos dois temas.
    ========================================================================== */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* --- cor: papéis semânticos ------------------------------------------- */
   --primary: #0476A5;          /* fundo de CTA — branco por cima dá 5,07:1 */
@@ -82,39 +82,40 @@
   --nav-h: 60px;
 }
 
-/* Modo escuro: variantes tonais dessaturadas, não inversão. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --primary: #05ACF0;
-    --primary-bright: #05A5E6;
-    --primary-ink: #05ACF0;      /* clareia para manter 5,79:1 sobre a superfície */
-    --primary-deep: #55CBFB;
-    --primary-soft: #123A50;
-    --primary-glow: rgba(5, 165, 230, .14);
-    --on-primary: #04131C;
+/* Modo escuro: variantes tonais dessaturadas, não inversão.
+   O data-theme é sempre definido antes da pintura (script no index.html):
+   segue o sistema por padrão, ou a escolha salva pelo botão de tema. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --primary: #05ACF0;
+  --primary-bright: #05A5E6;
+  --primary-ink: #05ACF0;      /* clareia para manter 5,79:1 sobre a superfície */
+  --primary-deep: #55CBFB;
+  --primary-soft: #123A50;
+  --primary-glow: rgba(5, 165, 230, .14);
+  --on-primary: #04131C;
 
-    --accent: #FECD0D;
-    --accent-ink: #FECB01;
-    --accent-soft: #3B2E09;
-    --on-accent: #04131C;
+  --accent: #FECD0D;
+  --accent-ink: #FECB01;
+  --accent-soft: #3B2E09;
+  --on-accent: #04131C;
 
-    --success: #45D183;
-    --success-soft: #0F2E20;
-    --danger: #FF7A80;
-    --danger-soft: #3A1417;
-    --on-deep: #04131C;
-    --on-danger: #2A0A0C;
+  --success: #45D183;
+  --success-soft: #0F2E20;
+  --danger: #FF7A80;
+  --danger-soft: #3A1417;
+  --on-deep: #04131C;
+  --on-danger: #2A0A0C;
 
-    --bg: #08202C;
-    --surface: #0D2A3A;
-    --surface-2: #123545;
-    --border: #1D4A62;
-    --text: #E4F1F8;
-    --muted: #7C9EB1;           /* 5,24:1 sobre --surface */
-    --scrim: rgba(0, 0, 0, .62);
+  --bg: #08202C;
+  --surface: #0D2A3A;
+  --surface-2: #123545;
+  --border: #1D4A62;
+  --text: #E4F1F8;
+  --muted: #7C9EB1;           /* 5,24:1 sobre --surface */
+  --scrim: rgba(0, 0, 0, .62);
 
-    --e-1: 0 1px 2px rgba(0, 0, 0, .4);
-    --e-2: 0 6px 14px rgba(0, 0, 0, .45);
-    --e-3: 0 12px 32px rgba(0, 0, 0, .6);
-  }
+  --e-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --e-2: 0 6px 14px rgba(0, 0, 0, .45);
+  --e-3: 0 12px 32px rgba(0, 0, 0, .6);
 }

@@ -62,6 +62,7 @@ export default function Dashboard() {
   return (
     <Screen
       title="Painel do bazar"
+      wide
       atmosphere="primary"
       action={
         <IconButton label="Sair da conta" onClick={logout}>
@@ -74,39 +75,41 @@ export default function Dashboard() {
 
       <Rise i={0}><p className="t-label">Olá, {user.name}</p></Rise>
 
-      <Rise i={1}>
-        <div className="hero-card">
-          <p className="t-label">Arrecadado em {monthBR()}</p>
-          <p className="hero-card__value">{money(total)}</p>
-          <p style={{ opacity: .85, fontWeight: 500 }}>
-            {mSales.length} vendas · {mDon.length} doações
-          </p>
-        </div>
-      </Rise>
+      <div className="cols cols--stretch">
+        <Rise i={1}>
+          <div className="hero-card">
+            <p className="t-label">Arrecadado em {monthBR()}</p>
+            <p className="hero-card__value">{money(total)}</p>
+            <p style={{ opacity: .85, fontWeight: 500 }}>
+              {mSales.length} vendas · {mDon.length} doações
+            </p>
+          </div>
+        </Rise>
 
-      <Rise i={2}>
-        <div className="card">
-          <h2 className="t-subtitle">Vendas × Doações no mês</h2>
-          <Bar icon={Receipt} label="Vendas" value={salesTotal} total={total} color="var(--primary-ink)" />
-          <Bar icon={Heart} label="Doações" value={donTotal} total={total} color="var(--accent)" />
-        </div>
-      </Rise>
+        <Rise i={2}>
+          <div className="card">
+            <h2 className="t-subtitle">Vendas × Doações no mês</h2>
+            <Bar icon={Receipt} label="Vendas" value={salesTotal} total={total} color="var(--primary-ink)" />
+            <Bar icon={Heart} label="Doações" value={donTotal} total={total} color="var(--accent)" />
+          </div>
+        </Rise>
 
-      <Rise i={3}>
-        <div className="stats">
-          <Stat icon={CheckCheck} label="Vendidos" success value={products.filter((p) => p.status === 'sold').length} />
-          <Stat icon={Shirt} label="Disponíveis" value={products.filter((p) => p.status === 'available').length} />
-        </div>
-      </Rise>
+        <Rise i={3}>
+          <div className="stats">
+            <Stat icon={CheckCheck} label="Vendidos" success value={products.filter((p) => p.status === 'sold').length} />
+            <Stat icon={Shirt} label="Disponíveis" value={products.filter((p) => p.status === 'available').length} />
+          </div>
+        </Rise>
 
-      <Rise i={4}>
-        <div className="card">
-          <h2 className="t-subtitle">Histórico geral</h2>
-          <KRow label="Total em vendas" value={money(sales.reduce((a, s) => a + s.amount, 0))} />
-          <KRow label="Total em doações" value={money(donations.reduce((a, d) => a + d.amount, 0))} />
-          <KRow label="Peças cadastradas" value={products.length} />
-        </div>
-      </Rise>
+        <Rise i={4}>
+          <div className="card">
+            <h2 className="t-subtitle">Histórico geral</h2>
+            <KRow label="Total em vendas" value={money(sales.reduce((a, s) => a + s.amount, 0))} />
+            <KRow label="Total em doações" value={money(donations.reduce((a, d) => a + d.amount, 0))} />
+            <KRow label="Peças cadastradas" value={products.length} />
+          </div>
+        </Rise>
+      </div>
     </Screen>
   );
 }

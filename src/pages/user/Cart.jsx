@@ -21,8 +21,9 @@ export default function Cart() {
 
   if (!items.length) {
     return (
-      <Screen title="Carrinho" atmosphere="primary" center>
-        <div className="t-center">
+      // `wide` mantém o título no mesmo lugar da Loja; o aviso fica estreito.
+      <Screen title="Carrinho" atmosphere="primary" center wide divider>
+        <div className="t-center" style={{ maxWidth: 420, marginInline: 'auto', width: '100%' }}>
           <div className="orb"><ShoppingCart size={44} aria-hidden="true" /></div>
           <p className="t-muted mb-4">
             Seu carrinho está vazio.<br />Cada peça comprada vira ajuda para alguém.
@@ -34,41 +35,45 @@ export default function Cart() {
   }
 
   return (
-    <Screen title="Carrinho">
+    <Screen title="Carrinho" wide divider>
       <p className="t-label">{items.length} item(ns)</p>
 
-      {items.map((p, i) => (
-        <Rise key={p.id} i={i}>
-          <div className="card item">
-            <img className="item__thumb" src={p.image} alt="" loading="lazy" width="64" height="64" />
-            <div className="item__body">
-              <strong>{p.name}</strong>
-              <span className="t-muted t-sm">Tam. {p.size} · {p.condition}</span>
-              <div><Price value={p.price} /></div>
-            </div>
-            <button
-              type="button"
-              className="icon-btn icon-btn--danger"
-              onClick={() => toggleCart(p.id)}
-              aria-label={`Remover ${p.name} do carrinho`}
-            >
-              <Trash2 size={22} aria-hidden="true" />
-            </button>
+      <div className="split">
+        <div>
+          {items.map((p, i) => (
+            <Rise key={p.id} i={i}>
+              <div className="card item">
+                <img className="item__thumb" src={p.image} alt="" loading="lazy" width="64" height="64" />
+                <div className="item__body">
+                  <strong>{p.name}</strong>
+                  <span className="t-muted t-sm">Tam. {p.size} · {p.condition}</span>
+                  <div><Price value={p.price} /></div>
+                </div>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--danger"
+                  onClick={() => toggleCart(p.id)}
+                  aria-label={`Remover ${p.name} do carrinho`}
+                >
+                  <Trash2 size={22} aria-hidden="true" />
+                </button>
+              </div>
+            </Rise>
+          ))}
+        </div>
+
+        <Rise i={items.length} className="split__aside">
+          <div className="card">
+            <KRow label="Subtotal" value={<Price value={total} />} />
+            <KRow label="Entrega" value="Grátis" />
+            <hr className="divider" />
+            <KRow label="Total" value={<Price value={total} />} total />
+            <Button onClick={proceed} icon={<ArrowRight size={20} aria-hidden="true" />}>
+              Finalizar compra
+            </Button>
           </div>
         </Rise>
-      ))}
-
-      <Rise i={items.length}>
-        <div className="card">
-          <KRow label="Subtotal" value={<Price value={total} />} />
-          <KRow label="Entrega" value="Grátis" />
-          <hr className="divider" />
-          <KRow label="Total" value={<Price value={total} />} total />
-          <Button onClick={proceed} icon={<ArrowRight size={20} aria-hidden="true" />}>
-            Finalizar compra
-          </Button>
-        </div>
-      </Rise>
+      </div>
 
       <Sheet open={askAddress} onClose={() => setAskAddress(false)} title="Endereço necessário">
         <div className="orb orb--sm"><MapPin size={26} aria-hidden="true" /></div>

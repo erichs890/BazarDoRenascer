@@ -36,8 +36,8 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
 ::selection { background: var(--primary-glow); }
 
 /* --- layout do app -------------------------------------------------------- */
-/* Coluna de app centralizada: no celular ocupa tudo, no desktop vira um
-   "aparelho" no centro em vez de esticar formulários por 1400px. */
+/* Coluna de app: no celular ocupa tudo; do tablet para cima o shell libera a
+   largura e cada tela limita o próprio conteúdo (ver "desktop" abaixo). */
 .shell {
   min-height: 100dvh;
   display: flex;
@@ -46,13 +46,6 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   margin-inline: auto;
   position: relative;
   background: var(--bg);
-}
-@media (min-width: 900px) {
-  body { background: var(--surface-2); }
-  .shell {
-    box-shadow: var(--e-2);
-    border-inline: 1px solid var(--border);
-  }
 }
 
 .appbar {
@@ -70,6 +63,16 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   transition: border-color var(--dur);
 }
 .appbar[data-scrolled='true'] { border-bottom-color: var(--border); }
+/* Título com divisão (Loja, Carrinho): linha fixa, título maior e respiro. */
+.appbar[data-divider='true'] {
+  border-bottom-color: var(--border);
+  padding-top: calc(var(--safe-t) + var(--sp-4));
+  padding-bottom: var(--sp-3);
+}
+.appbar[data-divider='true'] h1 { font-size: var(--step-2); }
+@media (max-width: 699px) {
+  .appbar[data-divider='true'] { padding-inline: var(--sp-4); }  /* alinha com o conteúdo */
+}
 .appbar h1 {
   font-family: var(--font-display);
   font-size: var(--step-1);
@@ -92,6 +95,7 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
 .main--flush > * { padding-inline: var(--sp-4); }
 .main--center { display: flex; flex-direction: column; justify-content: center; }
 .main--no-nav { padding-bottom: calc(var(--safe-b) + var(--sp-6)); }
+.main--spaced { padding-top: var(--sp-5); }
 
 /* --- barra inferior (tab bar) --------------------------------------------- */
 .tabbar {
@@ -110,7 +114,7 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   backdrop-filter: saturate(180%) blur(16px);
   border-top: 1px solid var(--border);
 }
-.tabbar a {
+.tabbar a, .tabbar__theme {
   min-height: var(--nav-h);
   display: flex;
   flex-direction: column;
@@ -125,6 +129,9 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   transition: color var(--dur-fast);
   -webkit-tap-highlight-color: transparent;
 }
+.tabbar__brand { display: none; }
+.tabbar__foot { display: contents; }   /* na barra inferior, o botão é só mais uma aba */
+.tabbar__icon { position: relative; display: grid; place-items: center; }
 .tabbar a[aria-current='page'] { color: var(--primary-ink); }
 .tabbar a[aria-current='page'] svg { fill: color-mix(in srgb, currentColor 22%, transparent); }
 .tabbar a::before {              /* indicador de aba ativa */
@@ -157,31 +164,93 @@ a { color: var(--primary-ink); text-decoration-thickness: 1px; text-underline-of
   border: 2px solid var(--surface);
 }
 
-/* Desktop largo: a navegação vira lateral (adaptive navigation) */
-@media (min-width: 1100px) {
-  :root { --shell-max: 820px; }
+/* --- tablet e desktop ------------------------------------------------------ */
+/* O shell deixa de ser um "aparelho" de 640px: ocupa a janela, e appbar e
+   conteúdo compartilham a mesma largura máxima, definida por tela:
+   narrow (login, sucesso), regular (formulários) e wide (vitrine, listas). */
+@media (min-width: 700px) {
+  .shell { max-width: none; }
+  .appbar, .main { --gutter: var(--sp-5); --content-max: 720px; }
+  [data-size='narrow'] { --content-max: 480px; }
+  [data-size='wide'] { --content-max: 1200px; }
+
+  .main {
+    width: 100%;
+    max-width: calc(var(--content-max) + 2 * var(--gutter));
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    padding-top: var(--sp-5);
+  }
+  .main--flush > * { padding-inline: 0; }
+  .appbar { padding-inline: max(var(--gutter), calc((100% - var(--content-max)) / 2)); }
+  .main--spaced { padding-top: var(--sp-6); }
+
+  /* barra inferior: ícones agrupados no centro, não espalhados pela janela */
+  .tabbar { max-width: none; padding-inline: max(0px, calc((100% - 560px) / 2)); }
+}
+
+/* Desktop: a navegação vira menu lateral com a marca (adaptive navigation). */
+@media (min-width: 1024px) {
+  :root { --side-w: 232px; }
+  .shell:has(> .tabbar) { padding-left: var(--side-w); }
+  .appbar, .main { --gutter: var(--sp-6); }
+
   .tabbar {
     top: 0;
-    bottom: 0;
     right: auto;
-    left: max(0px, calc(50% - 820px / 2 - 92px));
-    width: 92px;
-    max-width: none;
-    margin: 0;
-    grid-auto-flow: row;
-    grid-auto-rows: max-content;
-    align-content: center;
-    gap: var(--sp-2);
-    padding: var(--sp-4) var(--sp-2);
+    width: var(--side-w);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: calc(var(--safe-t) + var(--sp-5)) var(--sp-3) var(--sp-5);
     border-top: 0;
     border-right: 1px solid var(--border);
-    background: transparent;
+    background: var(--surface);
     backdrop-filter: none;
   }
-  .tabbar a { min-height: 68px; border-radius: var(--r-md); }
-  .tabbar a[aria-current='page'] { background: var(--primary-soft); }
-  .tabbar a::before { top: 50%; left: -8px; width: 3px; height: 28px; margin-top: -14px; border-radius: 3px; }
-  .main { padding-bottom: calc(var(--safe-b) + var(--sp-6)); }
+  .tabbar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: 0 var(--sp-3) var(--sp-5);
+    margin-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--step-1);
+    line-height: 1.15;
+    color: var(--primary-deep);
+  }
+  .tabbar a, .tabbar__theme {
+    min-height: 48px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--sp-3);
+    padding-inline: var(--sp-3);
+    border-radius: var(--r-md);
+    font-size: var(--step-0);
+  }
+  .tabbar a:hover, .tabbar__theme:hover { background: var(--surface-2); color: var(--text); }
+  .tabbar__foot {
+    display: block;
+    margin-top: auto;                    /* tema vai para o pé do menu */
+    padding-top: var(--sp-3);
+    border-top: 1px solid var(--border);
+  }
+  .tabbar__theme { width: 100%; }
+  .tabbar a[aria-current='page'] { background: var(--primary-soft); color: var(--primary-ink); }
+  .tabbar a::before {
+    top: 50%; left: calc(var(--sp-3) * -1);
+    width: 3px; height: 24px; margin-top: -12px;
+    border-radius: 0 3px 3px 0;
+    transform: scaleY(0);
+  }
+  .tabbar a[aria-current='page']::before { transform: scaleY(1); }
+  .tabbar .badge-dot { top: -8px; left: 100%; margin-left: -6px; }
+
+  .main { padding-bottom: calc(var(--safe-b) + var(--sp-7)); }
+  .appbar[data-divider='true'] { padding-top: calc(var(--safe-t) + var(--sp-5)); padding-bottom: var(--sp-4); }
+  .main--spaced { padding-top: var(--sp-7); }
 }
 
 /* --- atmosfera: blobs de gradiente atrás do conteúdo ---------------------- */

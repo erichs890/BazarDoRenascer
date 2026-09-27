@@ -35,6 +35,8 @@ export default function Shop() {
   return (
     <Screen
       title="Bazar do Renascer"
+      wide
+      divider
       atmosphere="primary"
       action={user && (
         <IconButton label="Sair da conta" onClick={logout}>
@@ -61,7 +63,7 @@ export default function Shop() {
       </Rise>
 
       <Rise i={1}>
-        <div className="cluster" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+        <div className="cluster" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', maxWidth: 720 }}>
           <div className="grow">
             <Field
               type="search"

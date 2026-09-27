@@ -487,3 +487,68 @@ dialog.sheet[open]::backdrop { animation: fade-in var(--dur) both; }
 
 /* Ícone girando (upload em andamento) — reaproveita o keyframe do spinner. */
 .spin { animation: spin .9s linear infinite; }
+
+/* --- layouts de desktop --------------------------------------------------- */
+/* No celular todos são uma coluna só; as colunas aparecem quando há espaço. */
+.pdp__media img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+}
+.toolbar .btn { margin-bottom: var(--sp-4); }
+
+@media (min-width: 700px) {
+  /* com mouse, rolar chips na horizontal é ruim: quebram linha */
+  .chips { flex-wrap: wrap; overflow-x: visible; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-4); }
+
+  .toolbar { display: flex; align-items: flex-start; gap: var(--sp-3); }
+  .toolbar > .field, .toolbar > .grow { flex: 1; min-width: 0; }
+  .toolbar .btn { width: auto; min-height: 50px; }
+
+  .list-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: var(--sp-3);
+  }
+  .list-grid > * > .card { margin-bottom: 0; height: 100%; }
+}
+
+@media (min-width: 900px) {
+  /* detalhe da peça: foto à esquerda, fixa enquanto a descrição rola */
+  .pdp {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: var(--sp-7);
+    align-items: start;
+  }
+  .pdp__media { position: sticky; top: calc(var(--safe-t) + 72px); }
+  .pdp__info { margin-top: 0; }
+
+  /* conteúdo + resumo lateral (carrinho) */
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: var(--sp-5);
+    align-items: start;
+  }
+  .split__aside { position: sticky; top: calc(var(--safe-t) + 72px); }
+
+  /* duas colunas de cards (painel, perfil) */
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-4);
+    align-items: start;
+  }
+  .cols > * > :last-child { margin-bottom: 0; }
+  .cols--stretch { align-items: stretch; }
+  .cols--stretch > * { display: flex; flex-direction: column; }
+  .cols--stretch > * > * { flex: 1; }
+}
+
+@media (min-width: 1024px) {
+  .toast { bottom: calc(var(--safe-b) + var(--sp-6)); }
+}

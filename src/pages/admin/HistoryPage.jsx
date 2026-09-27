@@ -17,7 +17,7 @@ export default function HistoryPage({ title, records, noun, icon: Icon, accent, 
   const total = list.reduce((a, r) => a + r.amount, 0);
 
   return (
-    <Screen title={title}>
+    <Screen title={title} wide>
       <Chips label="Período" options={PERIODS} value={period} onChange={setPeriod} allLabel="Tudo" />
 
       <div className="card between">
@@ -30,7 +30,7 @@ export default function HistoryPage({ title, records, noun, icon: Icon, accent, 
         </p>
       </div>
 
-      {list.length ? list.map((r, i) => (
+      {list.length ? <div className="list-grid">{list.map((r, i) => (
         <Rise key={r.id} i={i}>
           <div className="card item">
             <span className={`item__icon ${accent ? 'item__icon--accent' : ''}`}>
@@ -46,7 +46,7 @@ export default function HistoryPage({ title, records, noun, icon: Icon, accent, 
             <span className="item__amount">+{money(r.amount)}</span>
           </div>
         </Rise>
-      )) : <Empty>Nenhum registro no período.</Empty>}
+      ))}</div> : <Empty>Nenhum registro no período.</Empty>}
     </Screen>
   );
 }
