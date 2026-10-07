@@ -197,6 +197,37 @@ a verificação dos 16 pares em `tokens.css`).
 
 ---
 
+### Verificação contra o banco real
+
+Testado com dois usuários criados pela própria API, no projeto de produção.
+
+**Fluxo** — cadastro → trigger criou o profile (`role: user`) → endereço →
+compra pela RPC → peça saiu da vitrine → doação. Também ponta a ponta pela
+interface: login, carrinho, checkout, Pix, tela de sucesso, histórico
+atualizando de 2 para 3 compras. Zero erros de console.
+
+**Tentativas de ataque**, com o token de um usuário comum:
+
+| Tentativa | Resultado |
+|---|---|
+| Promover-se a admin (`PATCH profiles`) | bloqueado — `role` fora do `GRANT` de coluna |
+| Cadastrar peça | bloqueado — RLS de `products` |
+| Ler endereços de outros | `[]` — só enxerga o próprio |
+| Gravar venda direto na tabela | bloqueado — sem `GRANT INSERT` |
+| Ler o histórico de outro usuário | 0 registros |
+| Visitante anônimo lendo `profiles` | 401 |
+| Visitante anônimo lendo a vitrine | 200 — é pública, como projetado |
+
+**Venda dupla**, o teste que mais importa: dois checkouts **simultâneos** na
+mesma peça. Um recebeu `200` com o `order_id`, o outro `400` com "Uma ou mais
+peças não estão mais disponíveis" — e exatamente **uma** venda foi gravada.
+O `FOR UPDATE SKIP LOCKED` faz o que promete.
+
+Ainda não verificado: **upload de foto** (exige uma conta admin) e a
+**releitura das métricas de offline** com fotos vindas do Storage.
+
+---
+
 ## Backend (Supabase)
 
 Postgres + Auth + Storage, sem servidor próprio no meio. O navegador fala
