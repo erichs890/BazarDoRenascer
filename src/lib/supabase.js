@@ -26,6 +26,8 @@ export function friendlyError(error) {
     'Password should be at least 6 characters': 'A senha precisa de pelo menos 6 caracteres.',
     'Endereço de entrega obrigatório': 'Cadastre um endereço de entrega antes de finalizar.',
     'Uma ou mais peças não estão mais disponíveis': 'Alguém comprou uma das peças antes de você. Revise o carrinho.',
+    'Pedido não encontrado ou já resolvido': 'Esse pedido já foi confirmado ou cancelado.',
+    'Apenas administradores': 'Só a administração pode fazer isso.',
     'Failed to fetch': 'Sem conexão com o servidor. Verifique sua internet.',
   };
   for (const [k, v] of Object.entries(map)) if (m.includes(k)) return v;
@@ -39,13 +41,19 @@ export function friendlyError(error) {
 export const fromDbProduct = (p) => ({
   ...p, image: p.image_url, createdAt: p.created_at, price: Number(p.price),
 });
+// `?? 'paid'`: banco ainda sem a migração do Pix trata tudo como concluído.
 export const fromDbSale = (s) => ({
   ...s, productName: s.product_name, buyerName: s.buyer_name, buyerId: s.buyer_id,
-  amount: Number(s.amount),
+  orderId: s.order_id, amount: Number(s.amount), status: s.payment_status ?? 'paid',
 });
 export const fromDbDonation = (d) => ({
-  ...d, donorName: d.donor_name, donorId: d.donor_id, amount: Number(d.amount),
+  ...d, donorName: d.donor_name, donorId: d.donor_id,
+  amount: Number(d.amount), status: d.payment_status ?? 'paid',
 });
+
+/** Só entra em total o que foi pago — Pix pendente ainda não é dinheiro. */
+export const isPaid = (r) => r.status === 'paid';
+export const STATUS_LABEL = { pending: 'Aguardando Pix', paid: 'Pago', cancelled: 'Cancelado' };
 export const toDbProduct = ({ image, createdAt, id, created_at, image_url, ...rest }) => ({
   ...rest,
   image_url: image || image_url || null,

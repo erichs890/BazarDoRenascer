@@ -107,6 +107,37 @@ ORDER BY p.role, p.name;
 
 ---
 
+## 6b. Receber Pix de verdade
+
+O Pix do app é **estático**: o código já vem com o valor do pedido e o dinheiro
+cai direto na conta dona da chave, sem intermediário e sem taxa. Em troca, o
+banco não avisa o app — a confirmação é manual.
+
+1. **SQL Editor** → rode [`migracao-pix.sql`](migracao-pix.sql) (bancos novos já
+   recebem isso no `schema.sql`).
+2. No `.env`, preencha:
+
+```env
+VITE_PIX_KEY=sua-chave
+VITE_PIX_NAME=Nome do recebedor
+VITE_PIX_CITY=Cidade
+```
+
+   Formatos da chave: e-mail em minúsculas, telefone como `+5511999999999`,
+   CPF/CNPJ só com dígitos, ou a chave aleatória como o banco mostra.
+3. Reinicie o `npm run dev` (o Vite só lê o `.env` no boot).
+
+**Como fica o fluxo:** quem compra toca em "Gerar código Pix" — a peça é
+reservada na hora e sai da vitrine — paga no app do banco e o pedido fica
+**"Aguardando Pix"**. O admin vê o aviso no painel, confere no extrato o valor
+e a referência do pedido, e toca em **Confirmar**. Se o Pix não chegou,
+**Cancelar** devolve a peça à vitrine.
+
+> A chave aparece por extenso dentro do código Pix — é pública para quem paga.
+> Para a instituição, use a chave CNPJ.
+
+---
+
 ## 7. Testar se a segurança está de pé
 
 Vale gastar 2 minutos aqui. Rode no **SQL Editor**:

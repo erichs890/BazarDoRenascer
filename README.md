@@ -357,7 +357,7 @@ sugerida pela skill foi descartada em favor da marca existente.
 
 | Item | Por quê | Quando adicionar |
 |---|---|---|
-| **Pagamento real** | Pix e boleto são simulados: a RPC grava a venda direto, sem cobrança. | Integrar gateway (Mercado Pago/Stripe), adicionar `payment_status` + `gateway_ref` em `sales`, e confirmar por webhook numa Edge Function com `service_role`. |
+| **Confirmação automática do Pix** | O Pix é real (estático, direto na conta da chave), mas o banco não avisa o app: o pedido fica "Aguardando Pix" até o admin conferir o extrato e confirmar. Cartão e boleto seguem simulados. | Gateway (Mercado Pago, Asaas, Efí) com cobrança por pedido e webhook numa Edge Function — a chave secreta fica na função, nunca no front. |
 | **Pull-to-refresh** | O catálogo já recarrega a cada visita à vitrine. | Se a lista passar a mudar durante a sessão — aí Realtime resolve melhor que o gesto. |
 | **Recuperar senha** | Fora do escopo desta rodada. | `auth.resetPasswordForEmail()` + uma rota `/nova-senha`. Exige configurar SMTP no Supabase. |
 | **Login social** | Idem. | Providers do Supabase Auth; o `handle_new_user` já cria o profile de qualquer origem. |

@@ -552,3 +552,16 @@ dialog.sheet[open]::backdrop { animation: fade-in var(--dur) both; }
 @media (min-width: 1024px) {
   .toast { bottom: calc(var(--safe-b) + var(--sp-6)); }
 }
+
+/* QR Code real do Pix. Sempre escuro sobre branco, inclusive no tema escuro:
+   leitor de banco não lê QR invertido. */
+.qr-img {
+  display: block;
+  width: 232px; height: 232px;
+  margin: 0 auto var(--sp-4);
+  padding: var(--sp-2);
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  image-rendering: pixelated;
+}

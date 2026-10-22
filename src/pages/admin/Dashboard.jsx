@@ -1,8 +1,10 @@
-import { CheckCheck, Shirt, Receipt, Heart, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCheck, Shirt, Receipt, Heart, LogOut, Clock } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { Screen, OfflineBar, InstallPrompt } from '../../components/AppShell';
 import { KRow, Rise, IconButton } from '../../components/ui';
 import { money, monthBR } from '../../lib/format';
+import { isPaid } from '../../lib/supabase';
 
 const thisMonth = (iso) => {
   const d = new Date(iso);
@@ -51,7 +53,14 @@ function Bar({ icon: Icon, label, value, total, color }) {
 }
 
 export default function Dashboard() {
-  const { user, products, sales, donations, logout } = useApp();
+  const { user, products, sales: allSales, donations: allDonations, logout } = useApp();
+  // Arrecadação = dinheiro que chegou. Pix pendente aparece à parte.
+  const sales = allSales.filter(isPaid);
+  const donations = allDonations.filter(isPaid);
+  // Conta Pix, não linhas: um pedido de 3 peças é UM Pix.
+  const pending = (r) => r.status === 'pending';
+  const pendentes = new Set(allSales.filter(pending).map((s) => s.orderId)).size
+    + allDonations.filter(pending).length;
 
   const mSales = sales.filter((s) => thisMonth(s.date));
   const mDon = donations.filter((d) => thisMonth(d.date));
@@ -74,6 +83,21 @@ export default function Dashboard() {
       <InstallPrompt />
 
       <Rise i={0}><p className="t-label">Olá, {user.name}</p></Rise>
+
+      {pendentes > 0 && (
+        <Rise i={0}>
+          <Link
+            className="notice notice--offline"
+            style={{ textDecoration: 'none' }}
+            to={allSales.some(pending) ? '/admin/vendas' : '/admin/doacoes'}
+          >
+            <Clock size={18} aria-hidden="true" />
+            <span>
+              <strong>{pendentes} Pix aguardando confirmação</strong> — confira no extrato e confirme.
+            </span>
+          </Link>
+        </Rise>
+      )}
 
       <div className="cols cols--stretch">
         <Rise i={1}>

@@ -23,6 +23,11 @@ DO $$ BEGIN
   CREATE TYPE public.payment_method    AS ENUM ('Pix', 'Cartão de crédito', 'Boleto');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- Bloco proprio: no DO acima, um tipo ja existente aborta o bloco inteiro.
+DO $$ BEGIN
+  CREATE TYPE public.payment_status AS ENUM ('pending', 'paid', 'cancelled');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- --------------------------------------------------------------- tabelas
 -- 1:1 com auth.users. Criado por trigger no cadastro.
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -67,11 +72,14 @@ CREATE INDEX IF NOT EXISTS products_category_idx ON public.products (category) W
 CREATE TABLE IF NOT EXISTS public.sales (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id   uuid NOT NULL,
-  product_id uuid NOT NULL UNIQUE REFERENCES public.products(id),   -- peça vende uma vez
+  product_id uuid NOT NULL REFERENCES public.products(id),          -- unicidade: ver sales_product_once
   buyer_id   uuid NOT NULL REFERENCES public.profiles(id),
   amount     numeric(10,2) NOT NULL CHECK (amount > 0),
   payment    public.payment_method NOT NULL,
-  sold_at    timestamptz NOT NULL DEFAULT now()
+  sold_at    timestamptz NOT NULL DEFAULT now(),
+  payment_status public.payment_status NOT NULL DEFAULT 'pending',
+  confirmed_at   timestamptz,
+  confirmed_by   uuid REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS sales_buyer_idx   ON public.sales (buyer_id);
 CREATE INDEX IF NOT EXISTS sales_sold_at_idx ON public.sales (sold_at DESC);
@@ -83,10 +91,29 @@ CREATE TABLE IF NOT EXISTS public.donations (
   donor_name text NOT NULL CHECK (char_length(donor_name) BETWEEN 1 AND 80),
   amount     numeric(10,2) NOT NULL CHECK (amount > 0 AND amount <= 100000),
   payment    public.payment_method NOT NULL,
-  donated_at timestamptz NOT NULL DEFAULT now()
+  donated_at timestamptz NOT NULL DEFAULT now(),
+  payment_status public.payment_status NOT NULL DEFAULT 'pending',
+  confirmed_at   timestamptz,
+  confirmed_by   uuid REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS donations_donor_idx      ON public.donations (donor_id);
 CREATE INDEX IF NOT EXISTS donations_donated_at_idx ON public.donations (donated_at DESC);
+
+-- Bancos criados antes do Pix real: o CREATE TABLE acima nao altera tabela existente.
+-- Linhas que já existem entram como 'paid' (foram registradas como concluídas).
+ALTER TABLE public.sales     ADD COLUMN IF NOT EXISTS payment_status public.payment_status NOT NULL DEFAULT 'paid';
+ALTER TABLE public.sales     ADD COLUMN IF NOT EXISTS confirmed_at timestamptz;
+ALTER TABLE public.sales     ADD COLUMN IF NOT EXISTS confirmed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.donations ADD COLUMN IF NOT EXISTS payment_status public.payment_status NOT NULL DEFAULT 'paid';
+ALTER TABLE public.donations ADD COLUMN IF NOT EXISTS confirmed_at timestamptz;
+ALTER TABLE public.donations ADD COLUMN IF NOT EXISTS confirmed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.sales     ALTER COLUMN payment_status SET DEFAULT 'pending';
+ALTER TABLE public.donations ALTER COLUMN payment_status SET DEFAULT 'pending';
+
+-- O UNIQUE antigo impediria revender a peça de um Pix que nunca foi pago.
+ALTER TABLE public.sales DROP CONSTRAINT IF EXISTS sales_product_id_key;
+CREATE UNIQUE INDEX IF NOT EXISTS sales_product_once
+  ON public.sales (product_id) WHERE payment_status <> 'cancelled';
 
 -- ---------------------------------------------------------------- helpers
 -- Todas as funções fixam search_path (evita hijack de schema) e só são
@@ -151,10 +178,17 @@ CREATE TRIGGER profiles_protect_role BEFORE UPDATE ON public.profiles FOR EACH R
 
 -- Peça vendida não pode ser editada nem apagada (integridade do histórico).
 -- A venda em si passa: ali OLD.status ainda é 'available'.
+-- Única exceção: cancelar um Pix não pago devolve a peça (set_order_status).
 CREATE OR REPLACE FUNCTION public.protect_sold_product()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
   IF OLD.status = 'sold' THEN
+    -- Única saída: set_order_status() cancelando um Pix não pago devolve a
+    -- peça à vitrine. A flag só existe dentro da transação dessa função.
+    IF TG_OP = 'UPDATE' AND NEW.status = 'available'
+       AND current_setting('app.liberando_peca', true) = 'on' THEN
+      RETURN NEW;
+    END IF;
     RAISE EXCEPTION 'Peça vendida não pode ser alterada ou removida' USING ERRCODE = '42501';
   END IF;
   RETURN COALESCE(NEW, OLD);
@@ -182,6 +216,8 @@ BEGIN
   END IF;
 
   -- Trava as linhas e marca como vendidas numa instrução (sem race condition).
+  -- Com Pix, "vendida" aqui significa RESERVADA: sai da vitrine na hora, para
+  -- ninguém pagar por uma peça que outra pessoa já está pagando.
   WITH locked AS (
     SELECT id, price FROM public.products
     WHERE id = ANY(product_ids) AND status = 'available'
@@ -189,15 +225,14 @@ BEGIN
   ), upd AS (
     UPDATE public.products p SET status = 'sold' FROM locked WHERE p.id = locked.id RETURNING p.id, p.price
   )
-  INSERT INTO public.sales (order_id, product_id, buyer_id, amount, payment)
-  SELECT oid, id, uid, price, payment FROM upd;
+  INSERT INTO public.sales (order_id, product_id, buyer_id, amount, payment, payment_status)
+  SELECT oid, id, uid, price, payment,
+         CASE WHEN payment = 'Pix' THEN 'pending'::public.payment_status ELSE 'paid' END
+  FROM upd;
 
   GET DIAGNOSTICS affected = ROW_COUNT;
   IF affected <> cardinality(product_ids) THEN
-    -- NÃO usar ERRCODE 40001/40P01 aqui: o PostgREST trata esses códigos como
-    -- falha transitória e RETENTA a requisição sozinho. Como "peça vendida" é
-    -- permanente, ele retentaria para sempre — a conexão pendura e vira DoS.
-    -- P0001 é erro de aplicação: resposta imediata, sem retry.
+    -- NÃO usar ERRCODE 40001/40P01: o PostgREST retentaria para sempre.
     RAISE EXCEPTION 'Uma ou mais peças não estão mais disponíveis' USING ERRCODE = 'P0001';
   END IF;
   RETURN oid;
@@ -212,8 +247,11 @@ BEGIN
   IF uid IS NULL THEN RAISE EXCEPTION 'Não autenticado' USING ERRCODE = '42501'; END IF;
   IF amount IS NULL OR amount <= 0 OR amount > 100000 THEN RAISE EXCEPTION 'Valor inválido' USING ERRCODE = '22023'; END IF;
   SELECT name INTO dname FROM public.profiles WHERE id = uid;
-  INSERT INTO public.donations (donor_id, donor_name, amount, payment)
-  VALUES (CASE WHEN anonymous THEN NULL ELSE uid END, CASE WHEN anonymous THEN 'Anônimo' ELSE dname END, round(amount, 2), payment)
+  INSERT INTO public.donations (donor_id, donor_name, amount, payment, payment_status)
+  VALUES (CASE WHEN anonymous THEN NULL ELSE uid END,
+          CASE WHEN anonymous THEN 'Anônimo' ELSE dname END,
+          round(amount, 2), payment,
+          CASE WHEN payment = 'Pix' THEN 'pending'::public.payment_status ELSE 'paid' END)
   RETURNING id INTO did;
   RETURN did;
 END $$;
@@ -232,18 +270,59 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   LIMIT 1;
 $$;
 
+-- Admin confirma o Pix visto no extrato, ou cancela (e a peça volta à vitrine).
+CREATE OR REPLACE FUNCTION public.set_order_status(p_order_id uuid, p_status public.payment_status)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE n int;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Apenas administradores' USING ERRCODE = '42501'; END IF;
+  IF p_status = 'pending' THEN RAISE EXCEPTION 'Status inválido' USING ERRCODE = '22023'; END IF;
+
+  UPDATE public.sales
+     SET payment_status = p_status, confirmed_at = now(), confirmed_by = auth.uid()
+   WHERE order_id = p_order_id AND payment_status = 'pending';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n = 0 THEN RAISE EXCEPTION 'Pedido não encontrado ou já resolvido' USING ERRCODE = 'P0001'; END IF;
+
+  -- Pix não pago: as peças voltam para a vitrine.
+  IF p_status = 'cancelled' THEN
+    PERFORM set_config('app.liberando_peca', 'on', true);  -- true = só nesta transação
+    UPDATE public.products SET status = 'available'
+     WHERE id IN (SELECT product_id FROM public.sales WHERE order_id = p_order_id);
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.set_donation_status(p_donation_id uuid, p_status public.payment_status)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp AS $$
+DECLARE n int;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Apenas administradores' USING ERRCODE = '42501'; END IF;
+  IF p_status = 'pending' THEN RAISE EXCEPTION 'Status inválido' USING ERRCODE = '22023'; END IF;
+
+  UPDATE public.donations
+     SET payment_status = p_status, confirmed_at = now(), confirmed_by = auth.uid()
+   WHERE id = p_donation_id AND payment_status = 'pending';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n = 0 THEN RAISE EXCEPTION 'Pedido não encontrado ou já resolvido' USING ERRCODE = 'P0001'; END IF;
+END $$;
+
+
 -- ------------------------------------------------------------------ views
 -- O front consome estas views: já trazem os nomes resolvidos, sem join no cliente.
 -- security_invoker = true: a view respeita o RLS de QUEM consulta, não do dono.
 CREATE OR REPLACE VIEW public.sales_detail WITH (security_invoker = true) AS
   SELECT s.id, s.order_id, s.product_id, p.name AS product_name,
-         s.buyer_id, pr.name AS buyer_name, s.amount, s.payment, s.sold_at AS date
+         s.buyer_id, pr.name AS buyer_name, s.amount, s.payment, s.sold_at AS date,
+         s.payment_status
   FROM public.sales s
   JOIN public.products p  ON p.id  = s.product_id
   LEFT JOIN public.profiles pr ON pr.id = s.buyer_id;
 
 CREATE OR REPLACE VIEW public.donations_detail WITH (security_invoker = true) AS
-  SELECT d.id, d.donor_id, d.donor_name, d.amount, d.payment, d.donated_at AS date
+  SELECT d.id, d.donor_id, d.donor_name, d.amount, d.payment, d.donated_at AS date,
+         d.payment_status
   FROM public.donations d;
 
 -- --------------------------------------------------------------------- RLS
@@ -322,6 +401,8 @@ GRANT EXECUTE ON FUNCTION public.is_admin()                                     
 GRANT EXECUTE ON FUNCTION public.checkout(uuid[], public.payment_method)         TO authenticated;
 GRANT EXECUTE ON FUNCTION public.donate(numeric, public.payment_method, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.order_shipping(uuid)                            TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_order_status(uuid, public.payment_status)    TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_donation_status(uuid, public.payment_status) TO authenticated;
 
 -- ----------------------------------------------------------------- storage
 -- Bucket das fotos: leitura pública (a vitrine é pública), escrita só admin.

@@ -5,10 +5,10 @@ import { useApp } from '../../store/AppContext';
 import { Screen } from '../../components/AppShell';
 import { Button, Field, KRow, Price, Rise, toast } from '../../components/ui';
 import { money, dateBR } from '../../lib/format';
-import { friendlyError } from '../../lib/supabase';
+import { friendlyError, isPaid, STATUS_LABEL } from '../../lib/supabase';
 import { formatAddress } from './Address';
 
-function HistoryItem({ icon: Icon, accent, title, meta, amount }) {
+function HistoryItem({ icon: Icon, accent, title, meta, amount, status }) {
   return (
     <div className="item hist">
       <span className={`item__icon ${accent ? 'item__icon--accent' : ''}`}>
@@ -16,7 +16,9 @@ function HistoryItem({ icon: Icon, accent, title, meta, amount }) {
       </span>
       <span className="item__body">
         <strong>{title}</strong>
-        <span className="t-muted t-sm">{meta}</span>
+        <span className="t-muted t-sm">
+          {meta}{status && status !== 'paid' && ` · ${STATUS_LABEL[status]}`}
+        </span>
       </span>
       <Price value={amount} />
     </div>
@@ -91,7 +93,7 @@ export default function Profile() {
               ? myPurchases.map((s) => (
                 <HistoryItem
                   key={s.id} icon={PackageCheck} title={s.productName}
-                  meta={`${dateBR(s.date)} · ${s.payment}`} amount={s.amount}
+                  meta={`${dateBR(s.date)} · ${s.payment}`} amount={s.amount} status={s.status}
                 />
               ))
               : <p className="t-muted">Você ainda não comprou nenhuma peça.</p>}
@@ -105,12 +107,12 @@ export default function Profile() {
               ? myDonations.map((d) => (
                 <HistoryItem
                   key={d.id} icon={Heart} accent title="Doação"
-                  meta={`${dateBR(d.date)} · ${d.payment}`} amount={d.amount}
+                  meta={`${dateBR(d.date)} · ${d.payment}`} amount={d.amount} status={d.status}
                 />
               ))
               : <p className="t-muted">Nenhuma doação ainda.</p>}
             <hr className="divider" />
-            <KRow label="Total doado" value={money(myDonations.reduce((a, d) => a + d.amount, 0))} total />
+            <KRow label="Total doado" value={money(myDonations.filter(isPaid).reduce((a, d) => a + d.amount, 0))} total />
           </div>
           {/* Sair fica separado do resto: ação de saída não se mistura com navegação. */}
           <Button variant="outline" onClick={logout} icon={<LogOut size={20} aria-hidden="true" />}>

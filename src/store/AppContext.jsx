@@ -177,6 +177,7 @@ export function AppProvider({ children }) {
     await Promise.all([loadProducts(), loadPrivate()]);
     return {
       result: {
+        id: orderId,
         orderId,
         items,
         total: items.reduce((a, p) => a + Number(p.price), 0),
@@ -187,10 +188,19 @@ export function AppProvider({ children }) {
   };
 
   const donate = async (amount, payment, anonymous = false) => {
-    const { error } = await supabase.rpc('donate', { amount, payment, anonymous });
+    const { data: id, error } = await supabase.rpc('donate', { amount, payment, anonymous });
     if (error) return { error };
     await loadPrivate();
-    return { result: { amount, payment, date: new Date().toISOString() } };
+    return { result: { id, amount, payment, date: new Date().toISOString() } };
+  };
+
+  /** Admin: confirma o Pix visto no extrato ('paid') ou desiste dele ('cancelled'). */
+  const resolvePayment = async (kind, id, status) => {
+    const { error } = kind === 'sale'
+      ? await supabase.rpc('set_order_status', { p_order_id: id, p_status: status })
+      : await supabase.rpc('set_donation_status', { p_donation_id: id, p_status: status });
+    if (!error) await Promise.all([loadProducts(), loadPrivate()]);
+    return error;
   };
 
   const value = useMemo(() => ({
@@ -200,7 +210,7 @@ export function AppProvider({ children }) {
     signIn, signUp, signOut, logout: signOut,
     updateUser, saveAddress,
     uploadPhoto, addProduct, updateProduct, removeProduct,
-    toggleCart, checkout, donate,
+    toggleCart, checkout, donate, resolvePayment,
     refresh: () => Promise.all([loadProducts(), loadPrivate()]),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [booting, loadingProducts, profile, address, products, sales, donations, cart, userId]);
