@@ -1,17 +1,17 @@
 import { QrCode, CreditCard, Barcode, Circle, CheckCircle2 } from 'lucide-react';
-import { PAYMENTS } from '../data/enums';
+import { OFFERED_PAYMENTS } from '../lib/gateway';
 
 export const PAY_ICON = { Pix: QrCode, 'Cartão de crédito': CreditCard, Boleto: Barcode };
 const HINT = {
   Pix: 'Aprovação imediata',
-  'Cartão de crédito': 'Até 3x sem juros',
+  'Cartão de crédito': 'Em até 3x',
   Boleto: 'Compensa em até 2 dias úteis',
 };
 
 export default function PaymentPicker({ value, onChange }) {
   return (
     <div role="radiogroup" aria-label="Forma de pagamento">
-      {PAYMENTS.map((p) => {
+      {OFFERED_PAYMENTS.map((p) => {
         const Icon = PAY_ICON[p];
         const active = p === value;
         return (

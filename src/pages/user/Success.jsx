@@ -10,14 +10,19 @@ export default function Success() {
 
   if (!state?.result) return <Navigate to="/loja" replace />;
 
-  const { kind, result, amount, payment, pending, ref } = state;
+  const { kind, result, amount, payment, pending, auto, ref, installments } = state;
   const purchase = kind === 'purchase';
-  // Pix estático: o banco não avisa o app. Dizer "confirmado" aqui seria mentir.
+  // Pagamento ainda não confirmado: dizer "confirmado" aqui seria mentir.
   const title = pending
     ? (purchase ? 'Pedido reservado!' : 'Doação registrada!')
     : (purchase ? 'Compra confirmada!' : 'Obrigado pela doação!');
+  const card = payment === 'Cartão de crédito';
+  const quem = card
+    ? 'o Mercado Pago terminar a análise do cartão (pode levar até 2 dias), o bazar confirma'
+    : payment === 'Boleto' ? 'o boleto compensar (até 3 dias úteis depois de pago), o bazar confirma'
+    : auto ? 'o Mercado Pago confirmar o pagamento, o bazar confirma' : 'o Pix aparecer no extrato, a equipe do bazar confirma';
   const text = pending
-    ? `Assim que o Pix aparecer no extrato, a equipe do bazar confirma ${purchase ? 'o pedido e prepara o envio' : 'a doação'}. Você acompanha o status no seu histórico.`
+    ? `Assim que ${quem} ${purchase ? 'o pedido e prepara o envio' : 'a doação'}. Você acompanha o status no seu histórico.`
     : (purchase ? 'Suas peças serão enviadas para o endereço cadastrado.' : 'Sua generosidade transforma vidas.');
   // replace: o "voltar" não retorna para o pagamento já concluído.
   const go = (to) => navigate(to, { replace: true });
@@ -42,7 +47,7 @@ export default function Success() {
           {purchase && result.items.map((p) => (
             <KRow key={p.id} label={p.name} value={money(p.price)} />
           ))}
-          <KRow label="Forma de pagamento" value={payment} />
+          <KRow label="Forma de pagamento" value={installments > 1 ? `${payment} (${installments}x)` : payment} />
           {pending && <KRow label="Situação" value="Aguardando confirmação" />}
           {ref && <KRow label="Referência" value={ref} />}
           <KRow label="Data" value={dateBR(result.date)} />

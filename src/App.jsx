@@ -15,6 +15,7 @@ import Cart from './pages/user/Cart';
 import Address from './pages/user/Address';
 import Checkout from './pages/user/Checkout';
 import Payment from './pages/user/Payment';
+import PaymentReturn from './pages/user/PaymentReturn';
 import Donate from './pages/user/Donate';
 import Success from './pages/user/Success';
 import Profile from './pages/user/Profile';
@@ -112,6 +113,7 @@ export default function App() {
               <Route path="/endereco" element={<Address />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/pagamento" element={<Payment />} />
+              <Route path="/pagamento/retorno" element={<PaymentReturn />} />
               <Route path="/sucesso" element={<Success />} />
               <Route element={<ShopLayout />}>
                 <Route path="/doar" element={<Donate />} />

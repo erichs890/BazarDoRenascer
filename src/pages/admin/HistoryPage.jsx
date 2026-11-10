@@ -6,7 +6,7 @@ import { money } from '../../lib/format';
 import { friendlyError, isPaid, STATUS_LABEL } from '../../lib/supabase';
 
 const PERIODS = ['Esta semana', 'Este mês'];
-const VIEWS = ['Aguardando Pix'];
+const VIEWS = ['Aguardando pagamento'];
 const inPeriod = (iso, period) =>
   !period || Date.now() - new Date(iso).getTime() <= (period === 'Esta semana' ? 7 : 30) * 864e5;
 
@@ -51,7 +51,7 @@ export default function HistoryPage({
           <p className="t-label">{period || 'Todo o período'}</p>
           <p className="t-muted t-sm">
             {inRange.filter(isPaid).length} {noun} paga(s)
-            {pending.length > 0 && ` · ${pending.length} aguardando Pix`}
+            {pending.length > 0 && ` · ${pending.length} aguardando pagamento`}
           </p>
         </div>
         <p className="t-title--sm t-title" style={{ color: tone, fontVariantNumeric: 'tabular-nums' }}>
@@ -87,7 +87,15 @@ export default function HistoryPage({
                 </span>
               </div>
 
-              {isPending && onResolve && (
+              {/* Cartão em análise: quem decide é o Mercado Pago; confirmar na mão
+                  marcaria como pago algo que ainda pode ser recusado. */}
+              {isPending && r.payment === 'Cartão de crédito' && (
+                <p className="t-muted t-sm mt-2">
+                  Cartão em análise no Mercado Pago — a confirmação chega sozinha.
+                </p>
+              )}
+
+              {isPending && onResolve && r.payment !== 'Cartão de crédito' && (
                 <>
                   <p className="t-muted t-sm mt-2">
                     Confira no extrato um Pix de <strong>{money(r.pixAmount ?? r.amount)}</strong>

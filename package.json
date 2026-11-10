@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173",
-    "test": "node --test src/lib/*.test.js"
+    "test": "node --test src/lib/*.test.js supabase/functions/_shared/*.test.ts",
+    "deploy:pagamentos": "npx supabase functions deploy mp-checkout && npx supabase functions deploy mp-pix && npx supabase functions deploy mp-card && npx supabase functions deploy mp-webhook --no-verify-jwt"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.5",
     "@fontsource-variable/manrope": "^5.2.5",
+    "@mercadopago/sdk-react": "1.0.7",
     "@supabase/supabase-js": "^2.112.4",
     "lucide-react": "^0.469.0",
     "qrcode-generator": "^2.0.4",

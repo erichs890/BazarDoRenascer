@@ -6,6 +6,7 @@ import { Button, KRow, Price, Rise } from '../../components/ui';
 import PaymentPicker from '../../components/PaymentPicker';
 import { money } from '../../lib/format';
 import { formatAddress } from './Address';
+import { GATEWAY } from '../../lib/gateway';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -54,9 +55,11 @@ export default function Checkout() {
         >
           Pagar {money(total)}
         </Button>
-        <p className="t-muted t-sm t-center mt-2">
-          Pagamento simulado — nenhuma cobrança real será feita.
-        </p>
+        {payment !== 'Pix' && !GATEWAY && (
+          <p className="t-muted t-sm t-center mt-2">
+            Pagamento simulado — nenhuma cobrança real será feita.
+          </p>
+        )}
       </Rise>
     </Screen>
   );

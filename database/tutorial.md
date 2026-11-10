@@ -138,6 +138,170 @@ e a referência do pedido, e toca em **Confirmar**. Se o Pix não chegou,
 
 ---
 
+## 6c. Pagamentos pelo Mercado Pago (confirmação automática)
+
+Com o gateway, cada pedido ganha uma cobrança própria no Mercado Pago. Quando
+o pagamento cai, o Mercado Pago avisa o webhook e o pedido vira **Pago**
+sozinho — ninguém precisa conferir extrato. Pedido não pago é cancelado e a
+peça volta para a vitrine.
+
+Há dois modos — escolha um na variável `VITE_PAYMENT_GATEWAY`:
+
+| | **Checkout Pro** (`mercadopago-pro`) — recomendado | **Transparente** (`mercadopago`) |
+|---|---|---|
+| Onde paga | na página do Mercado Pago; depois volta para o app | dentro do próprio app |
+| Formas | Pix, cartão (até 3x) e **boleto de verdade** | Pix e cartão (até 3x) |
+| Precisa de | só o Access Token | Access Token + Public Key |
+| Recusa no cartão | tenta outro cartão ali mesmo | mensagem no app, tenta de novo |
+
+No **Checkout Pro**, a página do Mercado Pago mostra só a forma escolhida no
+app (Pix, cartão ou boleto) — o saldo da conta Mercado Pago sempre aparece,
+é regra deles. Pedido sem pagamento em andamento é cancelado em 2 h; boleto
+emitido segura a peça até o vencimento (3 dias) mais o prazo de compensação.
+
+No **Transparente**, o cartão usa o formulário do Mercado Pago embutido: os
+dados vão do navegador direto para eles e viram um token. Pix vence em 30 min.
+
+Nos dois, **todo pedido nasce pendente** e só o Mercado Pago marca como pago.
+
+O código já está todo pronto (`supabase/functions/` e
+`migracao-mercadopago.sql`). O que falta é só ligar a sua conta. ~10 minutos.
+
+### 1. Banco
+
+**SQL Editor** → rode [`migracao-mercadopago.sql`](migracao-mercadopago.sql)
+(depois do `migracao-pix.sql`, se o banco é antigo).
+
+Se aparecer o aviso "pg_cron indisponível": **Database → Extensions** → ative
+`pg_cron` e rode só o último bloco do arquivo de novo. Sem ele tudo funciona;
+só perde a rede de segurança que cancela Pix vencido caso um aviso do Mercado
+Pago se perca.
+
+### 2. Credencial do Mercado Pago
+
+1. Confira que a conta do Mercado Pago tem **chave Pix cadastrada** (app do
+   Mercado Pago → Pix → Minhas chaves). Sem chave, a API recusa cobrança Pix.
+2. Entre em <https://www.mercadopago.com.br/developers/panel/app> →
+   **Criar aplicação** (tipo: pagamentos online; escolha Checkout Pro ou
+   Checkout Transparente conforme o modo).
+3. Na aplicação: **Credenciais de produção** → copie o **Access Token**
+   (começa com `APP_USR-`). No modo transparente, copie também a **Public
+   Key** (também `APP_USR-`, mais curta).
+
+> O Access Token movimenta a conta. Ele vai **só** para os secrets do
+> Supabase — nunca para o `.env`, o repositório ou o front. A Public Key é o
+> contrário: é feita para ficar no navegador e só serve para gerar o token do
+> cartão.
+
+### 3. Publicar as Edge Functions
+
+No terminal, na raiz do projeto (a CLI vem pelo `npx`, sem instalar nada):
+
+```bash
+npx supabase login
+```
+
+```bash
+npx supabase link --project-ref SEU-PROJECT-REF
+```
+
+O project ref é o `xxxx` de `https://xxxx.supabase.co`.
+
+```bash
+npx supabase secrets set MP_ACCESS_TOKEN=APP_USR-cole-aqui
+```
+
+```bash
+npm run deploy:pagamentos
+```
+
+Isso publica `mp-checkout` (Checkout Pro), `mp-pix` e `mp-card`
+(transparente) e `mp-webhook` (recebe o aviso, sem exigir login — o Mercado
+Pago não tem token do Supabase). Publicar todas não atrapalha: o app só chama
+as do modo escolhido.
+
+Para o Checkout Pro, quando o app estiver publicado, diga o endereço dele —
+assim a função só manda as pessoas de volta para o seu site:
+
+```bash
+npx supabase secrets set SITE_URL=https://seu-app.vercel.app
+```
+
+> Sem terminal? Dá pelo painel: **Edge Functions → Deploy a new function →
+> Via Editor**, uma para cada pasta (cole também os arquivos de `_shared/`), e
+> desligue **Enforce JWT verification** na `mp-webhook`. O secret fica em
+> **Edge Functions → Secrets**.
+
+### 4. Ligar no app
+
+No `.env` (e nas variáveis do host, se já publicou):
+
+```env
+# Checkout Pro
+VITE_PAYMENT_GATEWAY=mercadopago-pro
+```
+
+ou
+
+```env
+# Transparente
+VITE_PAYMENT_GATEWAY=mercadopago
+VITE_MP_PUBLIC_KEY=APP_USR-cole-a-public-key
+```
+
+Reinicie o `npm run dev`. No transparente sem a Public Key, só o Pix fica
+disponível.
+
+> No Checkout Pro rodando em `http://localhost`, o Mercado Pago não volta
+> sozinho para o app depois de aprovar (ele só faz isso para `https`): clique
+> em **Voltar ao site** na página deles. Publicado em `https`, a volta é
+> automática.
+
+> Rode a migração e ligue a variável **juntos**: com a migração e sem o
+> gateway, o cartão simulado ficaria pendente para sempre.
+
+### 5. Assinatura do webhook (recomendado)
+
+O webhook já é seguro sem isso — ele nunca confia no aviso, sempre reconsulta
+o pagamento na API do Mercado Pago. A assinatura só recusa avisos forjados mais
+cedo.
+
+1. Na aplicação do Mercado Pago: **Webhooks → Configurar notificações** →
+   URL de produção `https://SEU-PROJECT-REF.supabase.co/functions/v1/mp-webhook`,
+   evento **Pagamentos** → Salvar.
+2. Copie a **assinatura secreta** que aparece e rode:
+
+```bash
+npx supabase secrets set MP_WEBHOOK_SECRET=cole-aqui
+```
+
+### Testar
+
+Faça uma compra de verdade de valor baixo (uma peça de R$ 1,00 cadastrada para
+isso) e pague com o app do seu banco. Em poucos segundos a tela de pagamento
+vira "Compra confirmada!". Depois, estorne pelo painel do Mercado Pago.
+
+> As credenciais **de teste** geram o QR Code, mas não dá para pagar um Pix de
+> teste com um banco real. Para o fluxo completo, use a de produção com valor
+> baixo.
+
+**Cartão:** dá para testar sem dinheiro de verdade. Use as **credenciais de
+teste** (Access Token nos secrets e, no transparente, Public Key no `.env` — as
+duas do mesmo par)
+e um dos [cartões de teste do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/checkout-bricks/integration-test/test-cards).
+O nome impresso decide o resultado: `APRO` aprova, `OTHE` recusa. Depois volte
+para as credenciais de produção.
+
+O que acompanhar:
+
+| Onde | O quê |
+|---|---|
+| **Edge Functions → mp-webhook → Logs** | cada aviso recebido; linhas `ATENÇÃO` pedem ação (ex.: Pix pago depois de o pedido ter sido cancelado → estornar no Mercado Pago) |
+| **Edge Functions → mp-checkout / mp-pix / mp-card → Logs** | cobranças recusadas pelo Mercado Pago, com o motivo |
+| Painel do bazar | o botão **Confirmar/Cancelar** continua valendo para resolver qualquer caso na mão |
+
+---
+
 ## 7. Testar se a segurança está de pé
 
 Vale gastar 2 minutos aqui. Rode no **SQL Editor**:
@@ -206,4 +370,9 @@ site em **Site URL**.
 | `addProduct` / `updateProduct` / `removeProduct` | `from('products')` — RLS restringe a admin |
 | `checkout` | `rpc('checkout', { product_ids, payment })` → `order_id` |
 | `donate` | `rpc('donate', { amount, payment, anonymous })` |
+| `pixCharge` | Edge Function `mp-pix` → `checkout`/`donate` + cobrança Pix no Mercado Pago |
+| `proCharge` | Edge Function `mp-checkout` → `checkout`/`donate` + preferência do Checkout Pro (devolve o link) |
+| `orderSummary` | `sales_detail` / `donations_detail` (volta do Checkout Pro) |
+| `cardCharge` | Edge Function `mp-card` → `checkout`/`donate` + cobrança no cartão (token do formulário do Mercado Pago) |
+| `paymentStatus` | `sales_detail` / `donations_detail` — a tela de Pix consulta até o webhook confirmar |
 | (logística de entrega) | `rpc('order_shipping', { p_order_id })` — só admin |

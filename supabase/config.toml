@@ -1,0 +1,5 @@
+# Usado pela Supabase CLI no deploy das Edge Functions (npm run deploy:pagamentos).
+
+# O Mercado Pago chama o webhook sem token do Supabase.
+[functions.mp-webhook]
+verify_jwt = false

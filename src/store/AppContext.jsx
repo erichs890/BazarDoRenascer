@@ -194,6 +194,95 @@ export function AppProvider({ children }) {
     return { result: { id, amount, payment, date: new Date().toISOString() } };
   };
 
+  /**
+   * Cobrança pelo Mercado Pago (Pix ou cartão). A Edge Function cria o pedido
+   * com as mesmas RPCs (usando o token de quem compra) e a cobrança; o valor
+   * sai do banco. `card` = token e dados que o formulário do Mercado Pago
+   * devolve — o número do cartão nunca chega aqui.
+   */
+  const gatewayCharge = async (kind, amount, card) => {
+    const items = products.filter((p) => cart.includes(p.id) && p.status === 'available');
+    const body = kind === 'purchase'
+      ? { kind, productIds: items.map((p) => p.id) }
+      : { kind, amount };
+    if (card) body.card = card;
+    const payment = card ? 'Cartão de crédito' : 'Pix';
+    const { data, error } = await supabase.functions.invoke(card ? 'mp-card' : 'mp-pix', { body });
+    if (error) {
+      // Erro HTTP da função: a mensagem útil vem no corpo, não no error.message.
+      let message;
+      try { message = (await error.context.json()).error; } catch { /* rede, CORS */ }
+      // Cartão recusado devolve as peças: atualiza a vitrine, mantém o carrinho.
+      if (card) await loadProducts();
+      return { error: message ? { message } : error };
+    }
+    if (kind === 'purchase') setCart([]);
+    await Promise.all([loadProducts(), loadPrivate()]);
+    return {
+      charge: data,
+      result: {
+        id: data.id,
+        orderId: data.id,
+        items,
+        total: data.amount,
+        amount: data.amount,
+        payment,
+        date: new Date().toISOString(),
+      },
+    };
+  };
+  const pixCharge = (kind, amount) => gatewayCharge(kind, amount);
+  const cardCharge = (kind, amount, card) => gatewayCharge(kind, amount, card);
+
+  /**
+   * Checkout Pro: cria o pedido e a página de pagamento no Mercado Pago.
+   * Devolve o link; quem chama redireciona. O link fica guardado na aba para
+   * "tentar de novo" depois de uma recusa (a página do Mercado Pago vale 1 h).
+   */
+  const proCharge = async (kind, amount, payment) => {
+    const items = products.filter((p) => cart.includes(p.id) && p.status === 'available');
+    const body = kind === 'purchase'
+      ? { kind, productIds: items.map((p) => p.id) }
+      : { kind, amount };
+    Object.assign(body, { payment, returnUrl: window.location.origin });
+    const { data, error } = await supabase.functions.invoke('mp-checkout', { body });
+    if (error) {
+      let message;
+      try { message = (await error.context.json()).error; } catch { /* rede, CORS */ }
+      return { error: message ? { message } : error };
+    }
+    try { sessionStorage.setItem(`mp-checkout:${data.id}`, data.init_point); } catch { /* aba privada */ }
+    if (kind === 'purchase') setCart([]);
+    return { charge: data };
+  };
+
+  /**
+   * Resumo de um pedido/doação do próprio usuário, lido do banco (o RLS já
+   * filtra). Usado na volta do Checkout Pro, quando o estado da tela se perdeu.
+   */
+  const orderSummary = async (kind, id) => {
+    const { data } = kind === 'purchase'
+      ? await supabase.from('sales_detail').select('*').eq('order_id', id)
+      : await supabase.from('donations_detail').select('*').eq('id', id);
+    if (!data?.length) return null;
+    const rows = kind === 'purchase' ? data.map(fromDbSale) : data.map(fromDbDonation);
+    return {
+      status: rows[0].status,
+      payment: rows[0].payment,
+      amount: rows.reduce((a, r) => a + r.amount, 0),
+      items: kind === 'purchase' ? rows.map((r) => ({ id: r.product_id, name: r.productName, price: r.amount })) : [],
+      date: rows[0].date ?? new Date().toISOString(),
+    };
+  };
+
+  /** Status atual de um pedido/doação do próprio usuário (o RLS já filtra). */
+  const paymentStatus = async (kind, id) => {
+    const { data } = kind === 'purchase'
+      ? await supabase.from('sales_detail').select('payment_status').eq('order_id', id).limit(1)
+      : await supabase.from('donations_detail').select('payment_status').eq('id', id).limit(1);
+    return data?.[0]?.payment_status ?? null;
+  };
+
   /** Admin: confirma o Pix visto no extrato ('paid') ou desiste dele ('cancelled'). */
   const resolvePayment = async (kind, id, status) => {
     const { error } = kind === 'sale'
@@ -210,7 +299,7 @@ export function AppProvider({ children }) {
     signIn, signUp, signOut, logout: signOut,
     updateUser, saveAddress,
     uploadPhoto, addProduct, updateProduct, removeProduct,
-    toggleCart, checkout, donate, resolvePayment,
+    toggleCart, checkout, donate, pixCharge, cardCharge, proCharge, orderSummary, paymentStatus, resolvePayment,
     refresh: () => Promise.all([loadProducts(), loadPrivate()]),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [booting, loadingProducts, profile, address, products, sales, donations, cart, userId]);

@@ -74,6 +74,13 @@ database/
   schema.sql                tabelas, RPCs, views, RLS, grants, bucket
   seed.sql                  10 peças de exemplo
   tutorial.md               do projeto vazio ao app rodando
+  migracao-mercadopago.sql  colunas e funções do gateway, expiração via pg_cron
+supabase/functions/
+  mp-checkout/              cria pedido + página do Checkout Pro
+  mp-pix/                   cria pedido + cobrança Pix no Mercado Pago
+  mp-card/                  cria pedido + cobrança no cartão (token do Brick)
+  mp-webhook/               recebe o aviso de pagamento e confirma o pedido
+  _shared/mercadopago.ts    assinatura, referência, status (testado no `npm test`)
 src/
   main.jsx                  monta o app e registra o service worker
   App.jsx                   rotas, guardas de papel, layouts com tab bar
@@ -302,6 +309,27 @@ papel `postgres`, alcançável só pelo SQL Editor e pela `service_role` — nã
 pela API pública. `anon` e `authenticated`, que é o que a internet enxerga,
 seguem 100% sujeitos às policies.
 
+### Pagamentos pelo Mercado Pago
+
+Edge Functions em [`supabase/functions/`](supabase/functions/). Dois modos:
+`VITE_PAYMENT_GATEWAY=mercadopago-pro` (Checkout Pro: paga na página do
+Mercado Pago, com Pix, cartão ou boleto) ou `mercadopago` (transparente: Pix e
+cartão no app; o cartão precisa de `VITE_MP_PUBLIC_KEY`).
+
+| Função | Faz |
+|---|---|
+| `mp-checkout` | Checkout Pro. Mesma criação de pedido, depois `POST /checkout/preferences` com só o tipo escolhido liberado e volta para `/pagamento/retorno`. O pedido guarda `pref:<id>` até um pagamento ser aprovado: recusa não cancela (dá para tentar outro cartão na mesma página); boleto/Pix/cartão em andamento estendem o prazo (`gateway_hold`); abandono é cancelado pelo `pg_cron`. |
+| `mp-pix` | chama `checkout()`/`donate()` **com o token do usuário** (reserva atômica e regras de sempre), lê o valor do banco via `gateway_amount` e cria o pagamento Pix (`POST /v1/payments`, `external_reference = sale:<order_id>`, vence em 30 min). Se o Mercado Pago recusar, cancela o pedido e devolve as peças. |
+| `mp-card` | mesmo caminho do `mp-pix`, mas cobra o **token** que o Card Payment Brick gera no navegador (o número do cartão nunca chega ao app nem ao servidor; até 3x). Aprovado → `gateway_settle` na hora; recusado → cancela e devolve as peças, com a mensagem do motivo; em análise → fica pendente e o webhook resolve. |
+| `mp-webhook` | recebe o aviso, valida `x-signature` (se `MP_WEBHOOK_SECRET` existir), **reconsulta o pagamento na API** e chama `gateway_settle`, que confere referência e valor antes de marcar como pago. |
+
+A tela de pagamento consulta o status a cada 4 s e vai sozinha para "confirmado".
+Pix vencido é cancelado pelo aviso do Mercado Pago ou, se ele se perder, pelo
+`cancel_stale_pix()` no `pg_cron`. As funções `gateway_*` só executam com a
+`service_role`; o `Access Token` do Mercado Pago só existe nos secrets das funções.
+Com a migração, `checkout()`/`donate()` gravam **todo** pedido como pendente:
+antes, cartão nascia "pago" e bastava chamar a RPC para levar a peça.
+
 ### Chaves
 
 Só a `anon key` vai para o front, e ela é pública por design: sozinha, não faz
@@ -357,7 +385,7 @@ sugerida pela skill foi descartada em favor da marca existente.
 
 | Item | Por quê | Quando adicionar |
 |---|---|---|
-| **Confirmação automática do Pix** | O Pix é real (estático, direto na conta da chave), mas o banco não avisa o app: o pedido fica "Aguardando Pix" até o admin conferir o extrato e confirmar. Cartão e boleto seguem simulados. | Gateway (Mercado Pago, Asaas, Efí) com cobrança por pedido e webhook numa Edge Function — a chave secreta fica na função, nunca no front. |
+| **Gateway ligado** | Integração com o Mercado Pago pronta (Checkout Pro ou transparente + webhook, ver abaixo), mas desligada até a conta ser conectada. Sem ela, vale o Pix estático com confirmação manual, e cartão e boleto seguem simulados. | Passo 6c do [tutorial](database/tutorial.md): token nos secrets, deploy das funções, `VITE_PAYMENT_GATEWAY=mercadopago-pro`. |
 | **Pull-to-refresh** | O catálogo já recarrega a cada visita à vitrine. | Se a lista passar a mudar durante a sessão — aí Realtime resolve melhor que o gesto. |
 | **Recuperar senha** | Fora do escopo desta rodada. | `auth.resetPasswordForEmail()` + uma rota `/nova-senha`. Exige configurar SMTP no Supabase. |
 | **Login social** | Idem. | Providers do Supabase Auth; o `handle_new_user` já cria o profile de qualquer origem. |

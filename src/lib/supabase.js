@@ -29,6 +29,7 @@ export function friendlyError(error) {
     'Pedido não encontrado ou já resolvido': 'Esse pedido já foi confirmado ou cancelado.',
     'Apenas administradores': 'Só a administração pode fazer isso.',
     'Failed to fetch': 'Sem conexão com o servidor. Verifique sua internet.',
+    'Failed to send a request to the Edge Function': 'Não foi possível falar com o servidor de pagamento. Tente de novo.',
   };
   for (const [k, v] of Object.entries(map)) if (m.includes(k)) return v;
   return m;
@@ -53,7 +54,7 @@ export const fromDbDonation = (d) => ({
 
 /** Só entra em total o que foi pago — Pix pendente ainda não é dinheiro. */
 export const isPaid = (r) => r.status === 'paid';
-export const STATUS_LABEL = { pending: 'Aguardando Pix', paid: 'Pago', cancelled: 'Cancelado' };
+export const STATUS_LABEL = { pending: 'Aguardando pagamento', paid: 'Pago', cancelled: 'Cancelado' };
 export const toDbProduct = ({ image, createdAt, id, created_at, image_url, ...rest }) => ({
   ...rest,
   image_url: image || image_url || null,
