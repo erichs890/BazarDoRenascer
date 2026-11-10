@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { friendlyError } from '../../lib/supabase';
 import { Screen } from '../../components/AppShell';
 import { Button, Field, toast } from '../../components/ui';
+import { cepDigits, lookupCep, maskCep } from '../../lib/cep';
 
 const FIELDS = [
   ['cep', 'CEP', { inputMode: 'numeric', placeholder: '00000-000', maxLength: 9, autoComplete: 'postal-code' }],
@@ -29,6 +30,39 @@ export default function Address() {
   );
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [cepStatus, setCepStatus] = useState(''); // '' | 'loading' | 'found' | 'notfound' | 'offline'
+
+  // CEP completo → ViaCEP preenche rua, bairro, cidade e UF. Só quando o CEP
+  // muda: abrir a tela com o endereço salvo não dispara busca nem sobrescreve.
+  const looked = useRef(cepDigits(address?.cep));
+  const digits = cepDigits(a.cep);
+  useEffect(() => {
+    // Mexeu no CEP (apagou um dígito): redigitar, mesmo igual ao salvo, busca de novo.
+    if (digits.length < 8) { looked.current = ''; return undefined; }
+    if (digits === looked.current) return undefined;
+    looked.current = digits;
+    const ctrl = new AbortController();
+    setCepStatus('loading');
+    lookupCep(digits, { signal: ctrl.signal })
+      .then((found) => {
+        if (!found) { setCepStatus('notfound'); return; }
+        setA((x) => ({ ...x, ...found }));
+        setErrors((e) => ({ ...e, cep: undefined, ...Object.fromEntries(Object.keys(found).map((k) => [k, undefined])) }));
+        setCepStatus('found');
+        // O que o CEP não tem é o número: o cursor vai direto para lá.
+        // (Se faltou a rua — CEP geral de cidade —, vai para a rua.)
+        requestAnimationFrame(() => document.querySelector(`[name="${found.street ? 'number' : 'street'}"]`)?.focus());
+      })
+      .catch((err) => { if (err.name !== 'AbortError') setCepStatus('offline'); });
+    return () => ctrl.abort();
+  }, [digits]);
+
+  const cepHint = {
+    loading: 'Buscando endereço…',
+    found: 'Endereço preenchido pelo CEP. Confira e complete.',
+    notfound: 'CEP não encontrado. Confira o número ou preencha o endereço abaixo.',
+    offline: 'Não foi possível buscar o CEP agora. Preencha o endereço abaixo.',
+  }[cepStatus];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -70,8 +104,15 @@ export default function Address() {
             key={k}
             label={optional ? label : `${label} *`}
             value={a[k] ?? ''}
-            onChange={(e) => setA((x) => ({ ...x, [k]: e.target.value }))}
+            name={k}
+            onChange={(e) => {
+              const value = k === 'cep' ? maskCep(e.target.value) : e.target.value;
+              if (k === 'cep' && cepDigits(value).length < 8) setCepStatus('');
+              setA((x) => ({ ...x, [k]: k === 'state' ? value.toUpperCase() : value }));
+            }}
             error={errors[k]}
+            hint={k === 'cep' ? cepHint : undefined}
+            aria-busy={k === 'cep' && cepStatus === 'loading' ? true : undefined}
             {...props}
           />
         ))}

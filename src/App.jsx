@@ -38,24 +38,39 @@ function Guard({ role }) {
   return <Outlet />;
 }
 
-/** Vitrine e carrinho são públicos; a última aba muda conforme o login. */
+/**
+ * Vitrine e carrinho são públicos; as abas mudam conforme o login. Admin não
+ * compra nem doa por esta conta (checkout e doação são só de usuário), então
+ * vê a vitrine com atalho para o Painel no lugar de Carrinho/Doar.
+ */
 function ShopLayout() {
   const { cart, user } = useApp();
+  const items = user?.role === 'admin'
+    ? [
+      { to: '/loja', label: 'Loja', icon: Store },
+      { to: '/admin', label: 'Painel', icon: BarChart3, end: true },
+      { to: '/perfil', label: 'Perfil', icon: User },
+    ]
+    : [
+      { to: '/loja', label: 'Loja', icon: Store },
+      { to: '/carrinho', label: 'Carrinho', icon: ShoppingCart, badge: cart.length },
+      { to: '/doar', label: 'Doar', icon: Heart },
+      user
+        ? { to: '/perfil', label: 'Perfil', icon: User }
+        : { to: '/login', label: 'Entrar', icon: LogIn },
+    ];
   return (
     <>
       <Outlet />
-      <TabBar
-        items={[
-          { to: '/loja', label: 'Loja', icon: Store },
-          { to: '/carrinho', label: 'Carrinho', icon: ShoppingCart, badge: cart.length },
-          { to: '/doar', label: 'Doar', icon: Heart },
-          user
-            ? { to: '/perfil', label: 'Perfil', icon: User }
-            : { to: '/login', label: 'Entrar', icon: LogIn },
-        ]}
-      />
+      <TabBar items={items} />
     </>
   );
+}
+
+/** Perfil é de qualquer pessoa logada; as abas seguem o papel de quem abriu. */
+function ProfileLayout() {
+  const { user } = useApp();
+  return user?.role === 'admin' ? <AdminLayout /> : <ShopLayout />;
 }
 
 /** Guarda de admin + fronteira do chunk carregado sob demanda. */
@@ -77,6 +92,7 @@ function AdminLayout() {
           { to: '/admin/produtos', label: 'Peças', icon: Shirt },
           { to: '/admin/vendas', label: 'Vendas', icon: Receipt },
           { to: '/admin/doacoes', label: 'Doações', icon: Heart },
+          { to: '/perfil', label: 'Perfil', icon: User },
         ]}
       />
     </>
@@ -117,6 +133,12 @@ export default function App() {
               <Route path="/sucesso" element={<Success />} />
               <Route element={<ShopLayout />}>
                 <Route path="/doar" element={<Donate />} />
+              </Route>
+            </Route>
+
+            {/* Perfil: usuário e admin (antes o admin era mandado de volta ao painel) */}
+            <Route element={<Guard />}>
+              <Route element={<ProfileLayout />}>
                 <Route path="/perfil" element={<Profile />} />
               </Route>
             </Route>

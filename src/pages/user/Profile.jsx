@@ -34,6 +34,8 @@ export default function Profile() {
   const myDonations = donations.filter((d) => d.donorId === user.id);
 
   const [saving, setSaving] = useState(false);
+  // Admin não compra nem doa por esta conta: perfil dele é só dados + sair.
+  const admin = user.role === 'admin';
 
   const save = async (e) => {
     e.preventDefault();
@@ -66,6 +68,7 @@ export default function Profile() {
                 <p className="t-title--sm t-title">{user.name}</p>
                 <p className="t-muted t-sm">{user.email}</p>
                 <p className="t-muted t-sm">{user.phone}</p>
+                {admin && <p className="t-label mt-2">Administração do bazar</p>}
                 <button type="button" className="link-btn mt-4" onClick={() => setEditing(true)}>
                   Editar dados
                 </button>
@@ -74,6 +77,7 @@ export default function Profile() {
           </div>
         </Rise>
 
+        {!admin && (<>
         <Rise i={1}>
           <div className="card">
             <div className="card-head mb-4">
@@ -114,6 +118,10 @@ export default function Profile() {
             <hr className="divider" />
             <KRow label="Total doado" value={money(myDonations.filter(isPaid).reduce((a, d) => a + d.amount, 0))} total />
           </div>
+        </Rise>
+        </>)}
+
+        <Rise i={admin ? 1 : 4}>
           {/* Sair fica separado do resto: ação de saída não se mistura com navegação. */}
           <Button variant="outline" onClick={logout} icon={<LogOut size={20} aria-hidden="true" />}>
             Sair da conta
